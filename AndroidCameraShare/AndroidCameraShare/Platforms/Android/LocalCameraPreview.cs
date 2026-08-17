@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 using Application = Android.App.Application;
 using Exception = System.Exception;
 using Object = Java.Lang.Object;
+using Platform = Microsoft.Maui.ApplicationModel.Platform;
 
 namespace AndroidCameraShare
 {
@@ -27,6 +28,7 @@ namespace AndroidCameraShare
         private HandlerThread? _thread;
         private Handler? _handler;
         private bool _released;
+        private bool _opening;
 
         public event Action<string>? Failed;
 
@@ -86,10 +88,9 @@ namespace AndroidCameraShare
             _handler = null;
             if (thread is not null)
             {
-                thread.QuitSafely();
                 try
                 {
-                    thread.Join(500);
+                    thread.QuitSafely();
                 }
                 catch (Exception)
                 {
@@ -123,16 +124,17 @@ namespace AndroidCameraShare
 
         private void Open(SurfaceTexture surface, int width, int height)
         {
-            if (_released)
+            if (_released || _opening || _device is not null)
             {
                 return;
             }
 
-            Context context = Application.Context;
+            Context context = Platform.CurrentActivity ?? Application.Context;
             CameraManager? manager = context.GetSystemService(Context.CameraService) as CameraManager;
             if (manager is null)
             {
                 _logger.LogWarning("Нет CameraManager");
+                Failed?.Invoke("Не удалось открыть превью");
                 return;
             }
 
@@ -140,18 +142,21 @@ namespace AndroidCameraShare
             if (cameraId is null)
             {
                 _logger.LogWarning("Нет камеры для превью");
+                Failed?.Invoke("Нет камеры");
                 return;
             }
 
             EnsureThread();
             try
             {
+                _opening = true;
                 manager.OpenCamera(cameraId, new DeviceCallback(this, surface, width, height), _handler);
             }
             catch (Exception ex)
             {
+                _opening = false;
                 _logger.LogError(ex, "Не удалось открыть камеру для превью");
-                Failed?.Invoke("Камера занята");
+                Failed?.Invoke("Не удалось открыть превью");
             }
         }
 
@@ -190,28 +195,52 @@ namespace AndroidCameraShare
 
         private void OnOpened(CameraDevice device, SurfaceTexture surface, int width, int height)
         {
+            _opening = false;
             if (_released)
             {
                 device.Close();
                 return;
             }
 
-            _device = device;
-            int w = width > 0 ? width : NannyConstants.CaptureWidth;
-            int h = height > 0 ? height : NannyConstants.CaptureHeight;
-            surface.SetDefaultBufferSize(w, h);
-            Surface previewSurface = new Surface(surface);
-            CaptureRequest.Builder? builder = device.CreateCaptureRequest(CameraTemplate.Preview);
-            if (builder is null)
+            try
             {
-                return;
-            }
+                _device = device;
+                int w = width > 0 ? width : NannyConstants.CaptureWidth;
+                int h = height > 0 ? height : NannyConstants.CaptureHeight;
+                if (w < h)
+                {
+                    int swap = w;
+                    w = h;
+                    h = swap;
+                }
 
-            builder.AddTarget(previewSurface);
-            device.CreateCaptureSession(
-                new List<Surface> { previewSurface },
-                new SessionCallback(this, builder),
-                _handler);
+                surface.SetDefaultBufferSize(w, h);
+                Surface previewSurface = new Surface(surface);
+                CaptureRequest.Builder? builder = device.CreateCaptureRequest(CameraTemplate.Preview);
+                if (builder is null)
+                {
+                    Failed?.Invoke("Не удалось открыть превью");
+                    return;
+                }
+
+                builder.AddTarget(previewSurface);
+                device.CreateCaptureSession(
+                    new List<Surface> { previewSurface },
+                    new SessionCallback(this, builder),
+                    _handler);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Сбой сессии превью");
+                Failed?.Invoke("Не удалось открыть превью");
+                try
+                {
+                    device.Close();
+                }
+                catch (Exception)
+                {
+                }
+            }
         }
 
         private void OnSessionReady(CameraCaptureSession session, CaptureRequest.Builder builder)
@@ -228,7 +257,16 @@ namespace AndroidCameraShare
             {
                 builder.Set(controlMode, (int)ControlMode.Auto);
             }
-            session.SetRepeatingRequest(builder.Build()!, null, _handler);
+
+            try
+            {
+                session.SetRepeatingRequest(builder.Build()!, null, _handler);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Превью: SetRepeatingRequest");
+                Failed?.Invoke("Не удалось открыть превью");
+            }
         }
 
         private void CloseCamera()
@@ -275,14 +313,16 @@ namespace AndroidCameraShare
 
             public override void OnDisconnected(CameraDevice camera)
             {
+                _owner._opening = false;
                 camera.Close();
             }
 
             public override void OnError(CameraDevice camera, CameraError error)
             {
+                _owner._opening = false;
                 _owner._logger.LogWarning("Превью камеры: {Error}", error);
                 camera.Close();
-                _owner.Failed?.Invoke("Камера занята");
+                _owner.Failed?.Invoke("Не удалось открыть превью");
             }
         }
 
@@ -305,6 +345,7 @@ namespace AndroidCameraShare
             public override void OnConfigureFailed(CameraCaptureSession session)
             {
                 _owner._logger.LogWarning("Превью: сессия Camera2 не собралась");
+                _owner.Failed?.Invoke("Не удалось открыть превью");
             }
         }
     }

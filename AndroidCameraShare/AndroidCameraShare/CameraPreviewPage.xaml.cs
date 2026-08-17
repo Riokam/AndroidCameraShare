@@ -9,10 +9,6 @@ public partial class CameraPreviewPage : ContentPage
     private readonly IOfferHandler _offers;
     private readonly ViewerCounter _viewers;
     private readonly ILogger<CameraPreviewPage> _logger;
-#if ANDROID
-    private LocalCameraPreview? _preview;
-    private Android.Views.TextureView? _texture;
-#endif
 
     public CameraPreviewPage(
         AppSettings settings,
@@ -25,109 +21,55 @@ public partial class CameraPreviewPage : ContentPage
         _offers = offers;
         _viewers = viewers;
         _logger = logger;
+        PreviewView.Failed += OnPreviewFailed;
+    }
+
+    private void OnPreviewFailed(object? sender, string message)
+    {
+        PreviewStatus.Text = message;
     }
 
     protected override void OnAppearing()
     {
         base.OnAppearing();
         _viewers.Changed += OnViewersChanged;
-        Dispatcher.Dispatch(StartPreview);
+        ApplyPreviewState();
     }
 
     protected override void OnDisappearing()
     {
         _viewers.Changed -= OnViewersChanged;
-        StopPreview();
+        PreviewView.IsActive = false;
         base.OnDisappearing();
     }
 
     private void OnViewersChanged()
     {
-        MainThread.BeginInvokeOnMainThread(() =>
-        {
-            if (_viewers.HasViewer || _offers.HasLiveSession)
-            {
-                StopPreview();
-                PreviewStatus.Text = "Камера занята";
-                return;
-            }
-
-            StartPreview();
-        });
+        MainThread.BeginInvokeOnMainThread(ApplyPreviewState);
     }
 
-    private void StartPreview()
+    private void ApplyPreviewState()
     {
-        StopPreview();
-        if (_offers.HasLiveSession || _viewers.HasViewer)
-        {
-            PreviewStatus.Text = "Камера занята";
-            return;
-        }
-
-#if ANDROID
         try
         {
-            if (PreviewHost.Handler?.PlatformView is not Android.Views.ViewGroup host)
+            if (_offers.HasLiveSession || _viewers.HasViewer)
             {
-                PreviewStatus.Text = "Не удалось открыть превью";
+                PreviewView.IsActive = false;
+                PreviewStatus.Text = "Камера занята";
+                _logger.LogInformation("Превью не стартовало: камера занята зрителем");
                 return;
             }
 
-            Android.Content.Context? context = host.Context ?? Android.App.Application.Context;
-            if (context is null)
-            {
-                PreviewStatus.Text = "Не удалось открыть превью";
-                return;
-            }
-
-            Android.Views.TextureView texture = new Android.Views.TextureView(context);
-            host.RemoveAllViews();
-            host.AddView(
-                texture,
-                new Android.Views.ViewGroup.LayoutParams(
-                    Android.Views.ViewGroup.LayoutParams.MatchParent,
-                    Android.Views.ViewGroup.LayoutParams.MatchParent));
-            _texture = texture;
-            _preview = new LocalCameraPreview(_settings, _logger);
-            _preview.Failed += OnPreviewFailed;
-            _preview.Attach(texture);
+            PreviewView.IsActive = true;
             PreviewStatus.Text = _settings.CameraFacing == CameraFacing.Front
                 ? "Фронтальная камера"
                 : "Основная камера";
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Сбой локального превью");
-            StopPreview();
-            PreviewStatus.Text = "Камера занята";
+            _logger.LogError(ex, "Сбой превью");
+            PreviewView.IsActive = false;
+            PreviewStatus.Text = "Не удалось открыть превью";
         }
-#else
-        PreviewStatus.Text = "Превью только на Android";
-#endif
-    }
-
-    private void OnPreviewFailed(string message)
-    {
-        MainThread.BeginInvokeOnMainThread(() => PreviewStatus.Text = message);
-    }
-
-    private void StopPreview()
-    {
-#if ANDROID
-        if (_preview is not null)
-        {
-            _preview.Failed -= OnPreviewFailed;
-            _preview.Release();
-            _preview = null;
-        }
-
-        if (_texture?.Parent is Android.Views.ViewGroup host)
-        {
-            host.RemoveView(_texture);
-        }
-
-        _texture = null;
-#endif
     }
 }

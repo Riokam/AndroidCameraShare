@@ -152,6 +152,11 @@ namespace AndroidCameraShare
                 ?? throw new InvalidOperationException("SurfaceTextureHelper");
             _videoSource = _factory.CreateVideoSource(_capturer.IsScreencast)
                 ?? throw new InvalidOperationException("VideoSource");
+            // 16:9, как лежит сенсор основной камеры — без портрета из ориентации телефона.
+            _videoSource.AdaptOutputFormat(
+                NannyConstants.CaptureWidth,
+                NannyConstants.CaptureHeight,
+                NannyConstants.CaptureFps);
             _capturer.Initialize(_surfaceHelper, context, _videoSource.CapturerObserver);
             _capturer.StartCapture(NannyConstants.CaptureWidth, NannyConstants.CaptureHeight, NannyConstants.CaptureFps);
             _videoTrack = _factory.CreateVideoTrack("video0", _videoSource)
@@ -245,9 +250,20 @@ namespace AndroidCameraShare
         private async Task TeardownCoreAsync(bool resetCounter)
         {
             _sessionLive = false;
+            if (_observer is not null)
+            {
+                _observer.OnDisconnected = null;
+                _observer.OnConnected = null;
+            }
             _iceWatchdog?.Cancel();
             _iceWatchdog?.Dispose();
             _iceWatchdog = null;
+
+            // Сначала снимаем тип camera у FGS, потом закрываем камеру — иначе Android гасит службу.
+            if (resetCounter)
+            {
+                _viewers.Reset();
+            }
 
             try
             {
@@ -291,10 +307,6 @@ namespace AndroidCameraShare
             _eglBase = null;
 
             _power.OnSessionEnded();
-            if (resetCounter)
-            {
-                _viewers.Reset();
-            }
         }
 
         private async Task SetDescriptionAsync(
@@ -403,6 +415,10 @@ namespace AndroidCameraShare
                 ?? throw new InvalidOperationException("Нет камеры");
             capturer.Initialize(_surfaceHelper, context, _videoSource.CapturerObserver);
             capturer.StartCapture(NannyConstants.CaptureWidth, NannyConstants.CaptureHeight, NannyConstants.CaptureFps);
+            _videoSource.AdaptOutputFormat(
+                NannyConstants.CaptureWidth,
+                NannyConstants.CaptureHeight,
+                NannyConstants.CaptureFps);
             _capturer = capturer;
         }
 

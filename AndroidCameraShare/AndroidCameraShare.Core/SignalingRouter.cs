@@ -138,11 +138,12 @@
             string battery = _battery?.TryGetPercent() is int percent
                 ? percent.ToString()
                 : "null";
+            string camera = _settings.CameraFacing == CameraFacing.Front ? "front" : "back";
             return new HttpResponseInfo
             {
                 StatusCode = 200,
                 ContentType = "application/json; charset=utf-8",
-                Body = "{\"battery\":" + battery + "}"
+                Body = "{\"battery\":" + battery + ",\"camera\":\"" + camera + "\"}"
             };
         }
 

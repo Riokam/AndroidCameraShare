@@ -85,8 +85,23 @@ namespace AndroidCameraShare
 
         private void OnViewersChanged()
         {
-            NotificationManager manager = (NotificationManager)GetSystemService(NotificationService)!;
-            manager.Notify(NotificationId, BuildNotification());
+            try
+            {
+                bool cameraOn = HasCameraPermission() && (_viewers?.HasViewer ?? false);
+                try
+                {
+                    StartForegroundWithType(includeCamera: cameraOn);
+                }
+                catch (Exception ex) when (cameraOn)
+                {
+                    _logger?.LogWarning(ex, "Тип camera у FGS не принят, оставляем dataSync");
+                    StartForegroundWithType(includeCamera: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogWarning(ex, "Не удалось обновить уведомление дежурства");
+            }
         }
 
         private void StartForegroundSafe()
@@ -96,12 +111,12 @@ namespace AndroidCameraShare
 
             try
             {
-                StartForegroundWithType(includeCamera: HasCameraPermission());
+                // Тип camera только пока идёт съёмка. Иначе Android 14+ гасит службу после hangup.
+                StartForegroundWithType(includeCamera: false);
             }
             catch (Exception ex) when (IsForegroundTypeRejected(ex))
             {
-                // С BOOT_COMPLETED тип camera на Android 14+ могут запретить — HTTP уже слушает.
-                _logger?.LogWarning(ex, "Тип camera у FGS запрещён, оставляем dataSync");
+                _logger?.LogWarning(ex, "Тип FGS запрещён");
                 _needsOpenAppForCamera = true;
                 StartForegroundWithType(includeCamera: false);
             }

@@ -264,7 +264,7 @@ namespace AndroidCameraShare.Tests
                 HttpResponseMessage response = await client.SendAsync(request);
                 string body = await response.Content.ReadAsStringAsync();
                 Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-                Assert.Equal("{\"battery\":64}", body);
+                Assert.Equal("{\"battery\":64,\"camera\":\"back\"}", body);
             }
             finally
             {

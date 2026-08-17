@@ -43,22 +43,60 @@ namespace AndroidCameraShare.Core
               <link rel="icon" href="data:,">
               <title>Няня</title>
               <style>
-                body { font-family: sans-serif; margin: 24px; background: #111; color: #eee; }
-                video { width: 100%; max-width: 960px; background: #000; }
-                #status { margin-top: 12px; min-height: 1.5em; }
-                #battery { margin-top: 4px; color: #aaa; }
+                html, body { height: 100%; }
+                body {
+                  font-family: sans-serif;
+                  margin: 0;
+                  padding: 12px;
+                  background: #111;
+                  color: #eee;
+                  display: flex;
+                  flex-direction: column;
+                  box-sizing: border-box;
+                  height: 100dvh;
+                  overflow: hidden;
+                }
+                .stage {
+                  flex: 1;
+                  min-height: 0;
+                  position: relative;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  background: #000;
+                  overflow: hidden;
+                }
+                video {
+                  width: 100%;
+                  height: 100%;
+                  object-fit: contain;
+                  background: #000;
+                }
+                video.landscape-rotate {
+                  position: absolute;
+                  left: 50%;
+                  top: 50%;
+                  object-fit: contain;
+                }
+                .bar { flex-shrink: 0; padding-top: 12px; }
+                #status { margin: 0; min-height: 1.5em; }
+                #battery { margin: 4px 0 0; color: #aaa; }
                 .error { color: #f66; }
-                .actions { margin-top: 12px; display: flex; gap: 8px; }
+                .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
                 button { font-size: 16px; padding: 8px 16px; }
               </style>
             </head>
             <body>
-              <video id="video" autoplay playsinline></video>
-              <p id="status"></p>
-              <p id="battery"></p>
-              <div class="actions">
-                <button id="stop" type="button">Остановить просмотр</button>
-                <button id="watch" type="button" hidden>Смотреть</button>
+              <div class="stage">
+                <video id="video" autoplay playsinline></video>
+              </div>
+              <div class="bar">
+                <p id="status"></p>
+                <p id="battery"></p>
+                <div class="actions">
+                  <button id="stop" type="button">Остановить просмотр</button>
+                  <button id="watch" type="button" hidden>Смотреть</button>
+                </div>
               </div>
               <script>
                 (function () {
@@ -72,6 +110,28 @@ namespace AndroidCameraShare.Core
                   var batteryTimer = null;
                   var generation = 0;
                   var stopped = false;
+                  var cameraFacing = 'back';
+
+                  function layoutVideo() {
+                    var stage = video.parentElement;
+                    if (!stage) {
+                      return;
+                    }
+                    var portrait = video.videoHeight > video.videoWidth;
+                    var rotate = cameraFacing === 'back' && portrait && video.videoHeight > 0;
+                    video.classList.toggle('landscape-rotate', rotate);
+                    if (!rotate) {
+                      video.style.width = '100%';
+                      video.style.height = '100%';
+                      video.style.transform = '';
+                      return;
+                    }
+                    var sw = stage.clientWidth;
+                    var sh = stage.clientHeight;
+                    video.style.width = sh + 'px';
+                    video.style.height = sw + 'px';
+                    video.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+                  }
 
                   function cookiePin() {
                     var match = document.cookie.match(/(?:^|; )pin=([^;]*)/);
@@ -191,6 +251,10 @@ namespace AndroidCameraShare.Core
                         return;
                       }
                       var data = await response.json();
+                      if (data.camera === 'front' || data.camera === 'back') {
+                        cameraFacing = data.camera;
+                        layoutVideo();
+                      }
                       if (typeof data.battery === 'number') {
                         battery.textContent = 'Заряд телефона ' + data.battery + '%';
                       } else {
@@ -222,6 +286,7 @@ namespace AndroidCameraShare.Core
                       pc.addTransceiver('video', { direction: 'recvonly' });
                       pc.ontrack = function (event) {
                         video.srcObject = event.streams[0];
+                        layoutVideo();
                       };
                       pc.oniceconnectionstatechange = function () {
                         if (!pc || myGeneration !== generation || stopped) {
@@ -304,6 +369,8 @@ namespace AndroidCameraShare.Core
                   });
                   batteryTimer = setInterval(refreshBattery, 30000);
                   refreshBattery();
+                  video.addEventListener('loadedmetadata', layoutVideo);
+                  window.addEventListener('resize', layoutVideo);
                   connect();
                 })();
               </script>

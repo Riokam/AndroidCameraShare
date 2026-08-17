@@ -99,7 +99,7 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("RTCPeerConnection", response.Body, StringComparison.Ordinal);
             Assert.Contains("waitIceComplete(pc, 3000)", response.Body, StringComparison.Ordinal);
             Assert.Contains("AbortController", response.Body, StringComparison.Ordinal);
-            Assert.Contains("Остановить просмотр", response.Body, StringComparison.Ordinal);
+            Assert.Contains("landscape-rotate", response.Body, StringComparison.Ordinal);
             Assert.Contains("Смотреть", response.Body, StringComparison.Ordinal);
             Assert.Contains("/hangup", response.Body, StringComparison.Ordinal);
             Assert.Contains("/status", response.Body, StringComparison.Ordinal);
@@ -165,7 +165,7 @@ namespace AndroidCameraShare.Tests
             };
             HttpResponseInfo response = router.Route(request);
             Assert.Equal(200, response.StatusCode);
-            Assert.Equal("{\"battery\":87}", response.Body);
+            Assert.Equal("{\"battery\":87,\"camera\":\"back\"}", response.Body);
             Assert.DoesNotContain(StoredPin, response.Body);
         }
         [Fact]
