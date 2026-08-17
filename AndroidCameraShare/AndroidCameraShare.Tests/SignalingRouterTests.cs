@@ -100,7 +100,17 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("waitIceComplete(pc, 3000)", response.Body, StringComparison.Ordinal);
             Assert.Contains("AbortController", response.Body, StringComparison.Ordinal);
             Assert.Contains("landscape-rotate", response.Body, StringComparison.Ordinal);
-            Assert.Contains("Смотреть", response.Body, StringComparison.Ordinal);
+            Assert.Contains("class=\"hud\"", response.Body, StringComparison.Ordinal);
+            Assert.Contains("(hover: none) and (pointer: coarse)", response.Body, StringComparison.Ordinal);
+            Assert.Contains("controls-on", response.Body, StringComparison.Ordinal);
+            Assert.Contains("cameraFacing === 'back' ? 180 : 0", response.Body, StringComparison.Ordinal);
+            Assert.Contains("aria-label=\"Повернуть 180°\"", response.Body, StringComparison.Ordinal);
+            Assert.Contains("aria-label=\"Сменить камеру\"", response.Body, StringComparison.Ordinal);
+            Assert.Contains("/camera", response.Body, StringComparison.Ordinal);
+            Assert.Contains("rotationOffset", response.Body, StringComparison.Ordinal);
+            Assert.Contains("icon-btn", response.Body, StringComparison.Ordinal);
+            Assert.Contains("aria-label=\"Смотреть\"", response.Body, StringComparison.Ordinal);
+            Assert.Contains("aria-label=\"Остановить просмотр\"", response.Body, StringComparison.Ordinal);
             Assert.Contains("/hangup", response.Body, StringComparison.Ordinal);
             Assert.Contains("/status", response.Body, StringComparison.Ordinal);
             Assert.Contains("30000", response.Body, StringComparison.Ordinal);
@@ -141,6 +151,46 @@ namespace AndroidCameraShare.Tests
             {
                 Method = "POST",
                 Path = "/hangup",
+                PinQuery = StoredPin
+            };
+            HttpResponseInfo response = router.Route(request);
+            Assert.Equal(401, response.StatusCode);
+        }
+        [Fact]
+        public void Route_WhenCameraWithoutPin_Returns401()
+        {
+            SignalingRouter router = CreateRouter();
+            HttpRequestInfo request = new HttpRequestInfo
+            {
+                Method = "POST",
+                Path = "/camera"
+            };
+            HttpResponseInfo response = router.Route(request);
+            Assert.Equal(401, response.StatusCode);
+        }
+        [Fact]
+        public void Route_WhenCameraAuthorized_Returns200WithoutBodyRequirement()
+        {
+            SignalingRouter router = CreateRouter();
+            HttpRequestInfo request = new HttpRequestInfo
+            {
+                Method = "POST",
+                Path = "/camera",
+                PinHeader = StoredPin,
+                BodyLength = 0
+            };
+            HttpResponseInfo response = router.Route(request);
+            Assert.Equal(200, response.StatusCode);
+            Assert.Equal("{}", response.Body);
+        }
+        [Fact]
+        public void Route_WhenCameraPinOnlyInQuery_Returns401()
+        {
+            SignalingRouter router = CreateRouter();
+            HttpRequestInfo request = new HttpRequestInfo
+            {
+                Method = "POST",
+                Path = "/camera",
                 PinQuery = StoredPin
             };
             HttpResponseInfo response = router.Route(request);

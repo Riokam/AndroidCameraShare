@@ -39,7 +39,7 @@ namespace AndroidCameraShare.Core
             <html lang="ru">
             <head>
               <meta charset="utf-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
               <link rel="icon" href="data:,">
               <title>Няня</title>
               <style>
@@ -47,7 +47,7 @@ namespace AndroidCameraShare.Core
                 body {
                   font-family: sans-serif;
                   margin: 0;
-                  padding: 12px;
+                  padding: 0;
                   background: #111;
                   color: #eee;
                   display: flex;
@@ -78,59 +78,149 @@ namespace AndroidCameraShare.Core
                   top: 50%;
                   object-fit: contain;
                 }
-                .bar { flex-shrink: 0; padding-top: 12px; }
-                #status { margin: 0; min-height: 1.5em; }
-                #battery { margin: 4px 0 0; color: #aaa; }
+                .hud {
+                  position: absolute;
+                  left: 0;
+                  right: 0;
+                  top: 0;
+                  z-index: 2;
+                  display: flex;
+                  gap: 12px;
+                  align-items: baseline;
+                  flex-wrap: wrap;
+                  padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 20px;
+                  background: linear-gradient(rgba(0,0,0,.72), transparent);
+                  pointer-events: none;
+                }
+                #status, #battery {
+                  margin: 0;
+                  font-size: 14px;
+                  text-shadow: 0 1px 2px #000;
+                }
+                #battery { color: #ccc; }
                 .error { color: #f66; }
-                .actions { margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
-                button { font-size: 16px; padding: 8px 16px; }
+                .actions {
+                  position: absolute;
+                  left: 0;
+                  right: 0;
+                  bottom: 0;
+                  z-index: 2;
+                  display: flex;
+                  gap: 14px;
+                  flex-wrap: wrap;
+                  align-items: center;
+                  justify-content: center;
+                  padding: 16px 12px calc(14px + env(safe-area-inset-bottom, 0px));
+                  background: linear-gradient(transparent, rgba(0,0,0,.78));
+                }
+                .icon-btn {
+                  width: 52px;
+                  height: 52px;
+                  padding: 0;
+                  border: 0;
+                  border-radius: 50%;
+                  background: rgba(255,255,255,.16);
+                  color: #fff;
+                  display: inline-flex;
+                  align-items: center;
+                  justify-content: center;
+                  cursor: pointer;
+                  backdrop-filter: blur(8px);
+                }
+                .icon-btn:hover { background: rgba(255,255,255,.28); }
+                .icon-btn:active { transform: scale(.96); }
+                .icon-btn svg { width: 22px; height: 22px; fill: currentColor; display: block; }
+                .icon-btn.stop svg { width: 16px; height: 16px; }
+                .icon-btn[hidden] { display: none; }
+                @media (hover: none) and (pointer: coarse) {
+                  .actions {
+                    opacity: 0;
+                    pointer-events: none;
+                    transition: opacity .2s;
+                  }
+                  body.controls-on .actions {
+                    opacity: 1;
+                    pointer-events: auto;
+                  }
+                }
               </style>
             </head>
             <body>
-              <div class="stage">
+              <div class="stage" id="stage">
                 <video id="video" autoplay playsinline></video>
-              </div>
-              <div class="bar">
-                <p id="status"></p>
-                <p id="battery"></p>
+                <div class="hud">
+                  <p id="status"></p>
+                  <p id="battery"></p>
+                </div>
                 <div class="actions">
-                  <button id="stop" type="button">Остановить просмотр</button>
-                  <button id="watch" type="button" hidden>Смотреть</button>
+                  <button id="stop" class="icon-btn stop" type="button" aria-label="Остановить просмотр" title="Стоп">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
+                  </button>
+                  <button id="watch" class="icon-btn" type="button" hidden aria-label="Смотреть" title="Смотреть">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
+                  </button>
+                  <button id="flip" class="icon-btn" type="button" aria-label="Повернуть 180°" title="Повернуть 180°">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L8 6l4 4V7c2.76 0 5 2.24 5 5s-2.24 5-5 5-5-2.24-5-5H5c0 3.87 3.13 7 7 7s7-3.13 7-7-3.13-7-7-7z"/></svg>
+                  </button>
+                  <button id="camera" class="icon-btn" type="button" aria-label="Сменить камеру" title="Сменить камеру">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10zm0-2.2a2.8 2.8 0 1 0 0-5.6 2.8 2.8 0 0 0 0 5.6z"/></svg>
+                  </button>
                 </div>
               </div>
               <script>
                 (function () {
                   var video = document.getElementById('video');
+                  var stage = document.getElementById('stage');
                   var status = document.getElementById('status');
                   var battery = document.getElementById('battery');
                   var stopBtn = document.getElementById('stop');
                   var watchBtn = document.getElementById('watch');
+                  var flipBtn = document.getElementById('flip');
+                  var cameraBtn = document.getElementById('camera');
                   var pc = null;
                   var reconnectTimer = null;
                   var batteryTimer = null;
                   var generation = 0;
                   var stopped = false;
                   var cameraFacing = 'back';
+                  var userFlip = false;
+
+                  function isTouchUi() {
+                    return window.matchMedia('(hover: none) and (pointer: coarse)').matches;
+                  }
+
+                  function rotationOffset() {
+                    var base = cameraFacing === 'back' ? 180 : 0;
+                    return userFlip ? (base + 180) % 360 : base;
+                  }
+
+                  function syncControls(isWatching) {
+                    if (!isWatching || !isTouchUi()) {
+                      document.body.classList.add('controls-on');
+                      return;
+                    }
+                    document.body.classList.remove('controls-on');
+                  }
 
                   function layoutVideo() {
-                    var stage = video.parentElement;
                     if (!stage) {
                       return;
                     }
                     var portrait = video.videoHeight > video.videoWidth;
                     var rotate = cameraFacing === 'back' && portrait && video.videoHeight > 0;
+                    var offset = rotationOffset();
                     video.classList.toggle('landscape-rotate', rotate);
                     if (!rotate) {
                       video.style.width = '100%';
                       video.style.height = '100%';
-                      video.style.transform = '';
+                      video.style.transform = offset ? ('rotate(' + offset + 'deg)') : '';
                       return;
                     }
                     var sw = stage.clientWidth;
                     var sh = stage.clientHeight;
                     video.style.width = sh + 'px';
                     video.style.height = sw + 'px';
-                    video.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+                    video.style.transform = 'translate(-50%, -50%) rotate(' + (90 + offset) + 'deg)';
                   }
 
                   function cookiePin() {
@@ -150,6 +240,7 @@ namespace AndroidCameraShare.Core
                   function setWatchingUi(isWatching) {
                     stopBtn.hidden = !isWatching;
                     watchBtn.hidden = isWatching;
+                    syncControls(isWatching);
                   }
 
                   function waitIceComplete(peer, timeoutMs) {
@@ -252,6 +343,9 @@ namespace AndroidCameraShare.Core
                       }
                       var data = await response.json();
                       if (data.camera === 'front' || data.camera === 'back') {
+                        if (cameraFacing !== data.camera) {
+                          userFlip = false;
+                        }
                         cameraFacing = data.camera;
                         layoutVideo();
                       }
@@ -362,6 +456,39 @@ namespace AndroidCameraShare.Core
                     stopped = false;
                     connect();
                   };
+                  flipBtn.onclick = function () {
+                    userFlip = !userFlip;
+                    layoutVideo();
+                  };
+                  cameraBtn.onclick = function () { switchCamera(); };
+                  async function switchCamera() {
+                    var pin = cookiePin();
+                    if (pin.length !== 4) {
+                      return;
+                    }
+                    try {
+                      var response = await fetch('/camera', {
+                        method: 'POST',
+                        headers: pinHeaders()
+                      });
+                      if (response.status === 401) {
+                        document.cookie = 'pin=; Path=/; Max-Age=0';
+                        location.reload();
+                        return;
+                      }
+                      if (!response.ok) {
+                        return;
+                      }
+                      await refreshBattery();
+                    } catch (error) {
+                    }
+                  }
+                  stage.addEventListener('click', function (event) {
+                    if (!isTouchUi() || event.target.closest('.actions')) {
+                      return;
+                    }
+                    document.body.classList.toggle('controls-on');
+                  });
                   window.addEventListener('pagehide', function () {
                     if (!stopped) {
                       hangup();

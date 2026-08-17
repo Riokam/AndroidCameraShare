@@ -6,6 +6,7 @@ using Android.OS;
 using AndroidCameraShare.Core;
 using AndroidX.Core.App;
 using Microsoft.Extensions.Logging;
+using Handler = Android.OS.Handler;
 
 namespace AndroidCameraShare
 {
@@ -23,6 +24,7 @@ namespace AndroidCameraShare
         private const string ChannelId = "nanny.duty";
         private const int NotificationId = 1;
 
+        private readonly Handler _mainHandler = new Handler(Looper.MainLooper!);
         private ViewerCounter? _viewers;
         private IDutyController? _duty;
         private ILogger<DutyService>? _logger;
@@ -55,6 +57,7 @@ namespace AndroidCameraShare
                 }
 
                 StartForegroundSafe();
+                _ = RestoreHttpIfNeededAsync();
             }
             catch (Exception ex)
             {
@@ -69,7 +72,7 @@ namespace AndroidCameraShare
                 }
             }
 
-            return StartCommandResult.NotSticky;
+            return StartCommandResult.Sticky;
         }
 
         public override void OnDestroy()
@@ -84,6 +87,12 @@ namespace AndroidCameraShare
         }
 
         private void OnViewersChanged()
+        {
+            // StartForeground только с главного потока: hangup приходит с HTTP/signaling.
+            _mainHandler.Post(UpdateForegroundNotification);
+        }
+
+        private void UpdateForegroundNotification()
         {
             try
             {
@@ -101,6 +110,33 @@ namespace AndroidCameraShare
             catch (Exception ex)
             {
                 _logger?.LogWarning(ex, "Не удалось обновить уведомление дежурства");
+                try
+                {
+                    NotificationManagerCompat.From(this)?.Notify(NotificationId, BuildNotification());
+                }
+                catch (Exception)
+                {
+                    // Уведомление не должно ронять дежурство.
+                }
+            }
+        }
+
+        /// <summary>
+        /// После abort процесса Android поднимает FGS заново — HTTP сам не оживёт.
+        /// </summary>
+        private async Task RestoreHttpIfNeededAsync()
+        {
+            try
+            {
+                if (_duty is DutyController controller && !controller.IsRunning)
+                {
+                    _logger?.LogWarning("Дежурный HTTP не слушает, поднимаем снова");
+                    await controller.StartFromBootAsync();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Не удалось восстановить дежурный HTTP");
             }
         }
 

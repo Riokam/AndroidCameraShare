@@ -242,6 +242,73 @@ namespace AndroidCameraShare.Tests
         }
 
         [Fact]
+        public async Task Camera_WhenAuthorized_TogglesFacingAndSwitches()
+        {
+            int port = GetFreePort();
+            AppSettings settings = CreateSettings(port);
+            ViewerCounter viewers = new ViewerCounter();
+            FailingOfferHandler handler = new FailingOfferHandler(viewers);
+            SignalingServer server = new SignalingServer(
+                settings,
+                viewers,
+                new CollectingLogger<SignalingServer>(),
+                handler);
+
+            try
+            {
+                Assert.True(server.TryStart());
+                using HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                using HttpRequestMessage request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"http://127.0.0.1:{port}/camera");
+                request.Headers.Add("X-Pin", "1234");
+
+                HttpResponseMessage response = await client.SendAsync(request);
+                string body = await response.Content.ReadAsStringAsync();
+
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                Assert.Equal("{}", body);
+                Assert.Equal(CameraFacing.Front, settings.CameraFacing);
+                Assert.Equal(1, handler.SwitchCount);
+            }
+            finally
+            {
+                await server.DisposeAsync();
+            }
+        }
+
+        [Fact]
+        public async Task Camera_WhenNoPin_Returns401AndDoesNotSwitch()
+        {
+            int port = GetFreePort();
+            AppSettings settings = CreateSettings(port);
+            ViewerCounter viewers = new ViewerCounter();
+            FailingOfferHandler handler = new FailingOfferHandler(viewers);
+            SignalingServer server = new SignalingServer(
+                settings,
+                viewers,
+                new CollectingLogger<SignalingServer>(),
+                handler);
+
+            try
+            {
+                Assert.True(server.TryStart());
+                using HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                HttpResponseMessage response = await client.PostAsync(
+                    $"http://127.0.0.1:{port}/camera",
+                    content: null);
+
+                Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+                Assert.Equal(CameraFacing.Back, settings.CameraFacing);
+                Assert.Equal(0, handler.SwitchCount);
+            }
+            finally
+            {
+                await server.DisposeAsync();
+            }
+        }
+
+        [Fact]
         public async Task Status_WhenAuthorized_ReturnsBattery()
         {
             int port = GetFreePort();
@@ -287,6 +354,8 @@ namespace AndroidCameraShare.Tests
 
             public int StopCount { get; private set; }
 
+            public int SwitchCount { get; private set; }
+
             public Task<HttpResponseInfo> HandleOfferAsync(string body, CancellationToken cancellationToken)
             {
                 LastError = "Нет камеры";
@@ -309,6 +378,7 @@ namespace AndroidCameraShare.Tests
 
             public Task SwitchCameraAsync()
             {
+                SwitchCount++;
                 return Task.CompletedTask;
             }
         }

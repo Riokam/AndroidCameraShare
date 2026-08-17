@@ -206,6 +206,8 @@ namespace AndroidCameraShare.Core
                 && path == "/offer";
             bool isHangup = string.Equals(request.HttpMethod, "POST", StringComparison.Ordinal)
                 && path == "/hangup";
+            bool isCamera = string.Equals(request.HttpMethod, "POST", StringComparison.Ordinal)
+                && path == "/camera";
 
             int bodyLength = GetBodyLength(request);
             string body = string.Empty;
@@ -246,6 +248,23 @@ namespace AndroidCameraShare.Core
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Сбой hangup");
+                }
+            }
+            else if (response.StatusCode == 200 && isCamera)
+            {
+                _settings.ToggleCameraFacing();
+                try
+                {
+                    if (_offers is not null)
+                    {
+                        await _offers.SwitchCameraAsync();
+                    }
+
+                    _logger.LogInformation("Камера переключена");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Сбой смены камеры");
                 }
             }
 

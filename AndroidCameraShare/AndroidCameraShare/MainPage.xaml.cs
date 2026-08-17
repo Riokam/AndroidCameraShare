@@ -47,6 +47,9 @@ namespace AndroidCameraShare
         protected override void OnAppearing()
         {
             base.OnAppearing();
+            _cameraReady = false;
+            CameraPicker.SelectedIndex = _settings.CameraFacing == CameraFacing.Front ? 1 : 0;
+            _cameraReady = true;
             RefreshView();
         }
 

@@ -78,6 +78,19 @@
                 };
             }
 
+            if (IsPost(request.Method) && path == "/camera")
+            {
+                if (!IsAuthorized(request))
+                    return Unauthorized();
+
+                return new HttpResponseInfo
+                {
+                    StatusCode = 200,
+                    ContentType = "application/json; charset=utf-8",
+                    Body = "{}"
+                };
+            }
+
             if (IsPost(request.Method) && path == "/offer")
             {
                 if (!IsAuthorized(request))

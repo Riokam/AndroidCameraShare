@@ -17,6 +17,7 @@ namespace AndroidCameraShare
         private readonly AppSettings _settings;
         private readonly ViewerCounter _viewers;
         private readonly PowerPolicy _power;
+        private readonly AppSettingsStore _store;
         private readonly ILogger<WebRtcHost> _logger;
         private readonly SemaphoreSlim _sessionGate = new SemaphoreSlim(1, 1);
 
@@ -30,16 +31,19 @@ namespace AndroidCameraShare
         private CancellationTokenSource? _iceWatchdog;
         private SessionObserver? _observer;
         private bool _sessionLive;
+        private static int _isFactoryInitialized;
 
         public WebRtcHost(
             AppSettings settings,
             ViewerCounter viewers,
             PowerPolicy power,
+            AppSettingsStore store,
             ILogger<WebRtcHost> logger)
         {
             _settings = settings;
             _viewers = viewers;
             _power = power;
+            _store = store;
             _logger = logger;
         }
 
@@ -96,6 +100,7 @@ namespace AndroidCameraShare
             {
                 LastError = null;
                 await TeardownCoreAsync(resetCounter: true);
+                _logger.LogInformation("Просмотр остановлен, дежурство не выключаем");
             }
             finally
             {
@@ -108,6 +113,7 @@ namespace AndroidCameraShare
             await _sessionGate.WaitAsync();
             try
             {
+                _store.Save();
                 if (!_sessionLive)
                 {
                     return;
@@ -130,18 +136,12 @@ namespace AndroidCameraShare
         private async Task<string> StartSessionAsync(string offerSdp, CancellationToken cancellationToken)
         {
             Context context = Application.Context;
-            EnsureInitialized(context);
-
-            _eglBase = IEglBase.Create() ?? throw new InvalidOperationException("EglBase");
-            IEglBase.IContext eglContext = _eglBase.EglBaseContext
-                ?? throw new InvalidOperationException("Egl context");
-            DefaultVideoEncoderFactory encoder = new DefaultVideoEncoderFactory(eglContext, true, true);
-            DefaultVideoDecoderFactory decoder = new DefaultVideoDecoderFactory(eglContext);
-            _factory = PeerConnectionFactory.InvokeBuilder()
-                .SetVideoEncoderFactory(encoder)
-                .SetVideoDecoderFactory(decoder)
-                .CreatePeerConnectionFactory()
+            EnsureFactory(context);
+            PeerConnectionFactory factory = _factory
                 ?? throw new InvalidOperationException("PeerConnectionFactory");
+
+            IEglBase.IContext eglContext = _eglBase!.EglBaseContext
+                ?? throw new InvalidOperationException("Egl context");
 
             Camera2Enumerator enumerator = new Camera2Enumerator(context);
             string deviceName = FindCameraName(enumerator);
@@ -150,7 +150,7 @@ namespace AndroidCameraShare
 
             _surfaceHelper = SurfaceTextureHelper.Create("nanny-capture", eglContext)
                 ?? throw new InvalidOperationException("SurfaceTextureHelper");
-            _videoSource = _factory.CreateVideoSource(_capturer.IsScreencast)
+            _videoSource = factory.CreateVideoSource(_capturer.IsScreencast)
                 ?? throw new InvalidOperationException("VideoSource");
             // 16:9, как лежит сенсор основной камеры — без портрета из ориентации телефона.
             _videoSource.AdaptOutputFormat(
@@ -159,7 +159,7 @@ namespace AndroidCameraShare
                 NannyConstants.CaptureFps);
             _capturer.Initialize(_surfaceHelper, context, _videoSource.CapturerObserver);
             _capturer.StartCapture(NannyConstants.CaptureWidth, NannyConstants.CaptureHeight, NannyConstants.CaptureFps);
-            _videoTrack = _factory.CreateVideoTrack("video0", _videoSource)
+            _videoTrack = factory.CreateVideoTrack("video0", _videoSource)
                 ?? throw new InvalidOperationException("VideoTrack");
 
             PeerConnection.IceServer? stun = PeerConnection.IceServer.InvokeBuilder("stun:stun.l.google.com:19302").CreateIceServer();
@@ -177,7 +177,7 @@ namespace AndroidCameraShare
 
             TaskCompletionSource iceComplete = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             _observer = new SessionObserver(iceComplete);
-            _peerConnection = _factory.CreatePeerConnection(rtcConfig, _observer)
+            _peerConnection = factory.CreatePeerConnection(rtcConfig, _observer)
                 ?? throw new InvalidOperationException("PeerConnection не создан");
             _peerConnection.AddTrack(_videoTrack, new List<string> { "stream0" });
 
@@ -301,10 +301,7 @@ namespace AndroidCameraShare
 
             _peerConnection = null;
             _observer = null;
-            _factory?.Dispose();
-            _factory = null;
-            _eglBase?.Dispose();
-            _eglBase = null;
+            // Factory и EglBase живут до конца процесса: Dispose убивает signaling thread (destroyed mutex).
 
             _power.OnSessionEnded();
         }
@@ -342,7 +339,29 @@ namespace AndroidCameraShare
             return Application.Context.CheckSelfPermission(Manifest.Permission.Camera) == Permission.Granted;
         }
 
-        private static int _isFactoryInitialized;
+        /// <summary>
+        /// Factory и EglBase один раз на процесс. Повторный Dispose рвёт signaling thread.
+        /// </summary>
+        private void EnsureFactory(Context context)
+        {
+            EnsureInitialized(context);
+            if (_eglBase is not null && _factory is not null)
+            {
+                return;
+            }
+
+            _eglBase = IEglBase.Create() ?? throw new InvalidOperationException("EglBase");
+            IEglBase.IContext eglContext = _eglBase.EglBaseContext
+                ?? throw new InvalidOperationException("Egl context");
+            DefaultVideoEncoderFactory encoder = new DefaultVideoEncoderFactory(eglContext, true, true);
+            DefaultVideoDecoderFactory decoder = new DefaultVideoDecoderFactory(eglContext);
+            _factory = PeerConnectionFactory.InvokeBuilder()
+                .SetVideoEncoderFactory(encoder)
+                .SetVideoDecoderFactory(decoder)
+                .CreatePeerConnectionFactory()
+                ?? throw new InvalidOperationException("PeerConnectionFactory");
+            _logger.LogInformation("WebRTC factory создан");
+        }
 
         private static void EnsureInitialized(Context context)
         {
@@ -496,9 +515,10 @@ namespace AndroidCameraShare
                     return;
                 }
 
+                // Closed — следствие нашего Close(), не уход зрителя. Иначе teardown
+                // и SIGABRT на destroyed mutex у signaling thread.
                 if (state == PeerConnection.IceConnectionState.Failed
-                    || state == PeerConnection.IceConnectionState.Disconnected
-                    || state == PeerConnection.IceConnectionState.Closed)
+                    || state == PeerConnection.IceConnectionState.Disconnected)
                 {
                     OnDisconnected?.Invoke();
                 }

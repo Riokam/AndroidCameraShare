@@ -73,5 +73,12 @@ namespace AndroidCameraShare.Core
         /// При просмотре гасить дисплей няни.
         /// </summary>
         public bool ShouldDimScreen { get; set; } = true;
+
+        public void ToggleCameraFacing()
+        {
+            CameraFacing = CameraFacing == CameraFacing.Front
+                ? CameraFacing.Back
+                : CameraFacing.Front;
+        }
     }
 }

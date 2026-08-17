@@ -1,20 +1,24 @@
 using Android.Views;
+using Android.Widget;
 using AndroidCameraShare.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Handlers;
+using Color = Android.Graphics.Color;
 
 namespace AndroidCameraShare
 {
     /// <summary>
-    /// TextureView держим в поле: свойство PlatformView до Connect кидает и роняет процесс.
+    /// PlatformView — FrameLayout: TextureView падает на setBackgroundColor из MAUI.
     /// </summary>
-    internal sealed class CameraPreviewViewHandler : ViewHandler<CameraPreviewView, TextureView>
+    internal sealed class CameraPreviewViewHandler : ViewHandler<CameraPreviewView, FrameLayout>
     {
         public static readonly IPropertyMapper<CameraPreviewView, CameraPreviewViewHandler> Mapper =
             new PropertyMapper<CameraPreviewView, CameraPreviewViewHandler>(ViewMapper)
             {
-                [nameof(CameraPreviewView.IsActive)] = MapIsActive
+                [nameof(CameraPreviewView.IsActive)] = MapIsActive,
+                [nameof(CameraPreviewView.Background)] = MapIgnoreBackground,
+                [nameof(CameraPreviewView.BackgroundColor)] = MapIgnoreBackground
             };
 
         private TextureView? _texture;
@@ -26,27 +30,43 @@ namespace AndroidCameraShare
         {
         }
 
-        protected override TextureView CreatePlatformView()
+        protected override FrameLayout CreatePlatformView()
         {
-            TextureView view = new TextureView(Context);
-            _texture = view;
-            return view;
+            FrameLayout host = new FrameLayout(Context);
+            host.SetBackgroundColor(Color.Black);
+            TextureView texture = new TextureView(Context);
+            host.AddView(
+                texture,
+                new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MatchParent,
+                    ViewGroup.LayoutParams.MatchParent));
+            _texture = texture;
+            return host;
         }
 
-        protected override void ConnectHandler(TextureView platformView)
+        protected override void ConnectHandler(FrameLayout platformView)
         {
-            _texture = platformView;
             _virtual = VirtualView;
+            if (_texture is null && platformView.ChildCount > 0)
+            {
+                _texture = platformView.GetChildAt(0) as TextureView;
+            }
+
             base.ConnectHandler(platformView);
             SyncPreview();
         }
 
-        protected override void DisconnectHandler(TextureView platformView)
+        protected override void DisconnectHandler(FrameLayout platformView)
         {
             StopPreview();
             _texture = null;
             _virtual = null;
             base.DisconnectHandler(platformView);
+        }
+
+        private static void MapIgnoreBackground(CameraPreviewViewHandler handler, CameraPreviewView view)
+        {
+            // Фон только у FrameLayout, не у TextureView.
         }
 
         private static void MapIsActive(CameraPreviewViewHandler handler, CameraPreviewView view)
@@ -58,7 +78,10 @@ namespace AndroidCameraShare
             catch (Exception ex)
             {
                 view.NotifyFailed("Не удалось открыть превью");
-                System.Diagnostics.Debug.WriteLine(ex);
+                ILogger? logger = IPlatformApplication.Current?.Services
+                    ?.GetService<ILoggerFactory>()
+                    ?.CreateLogger(nameof(CameraPreviewViewHandler));
+                logger?.LogError(ex, "Сбой превью камеры");
             }
         }
 

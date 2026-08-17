@@ -17,6 +17,17 @@ namespace AndroidCameraShare.Tests
             Assert.True(settings.ShouldDimScreen);
 
         }
+        [Fact]
+        public void ToggleCameraFacing_WhenBack_SwitchesToFrontAndBack()
+        {
+            AppSettings settings = new AppSettings();
+
+            settings.ToggleCameraFacing();
+            Assert.Equal(CameraFacing.Front, settings.CameraFacing);
+
+            settings.ToggleCameraFacing();
+            Assert.Equal(CameraFacing.Back, settings.CameraFacing);
+        }
 
         [Fact]
         public void TrySetPort_WhenTooLow_ReturnFalse()

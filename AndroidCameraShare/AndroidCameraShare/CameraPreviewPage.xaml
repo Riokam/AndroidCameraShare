@@ -5,8 +5,7 @@
              x:Class="AndroidCameraShare.CameraPreviewPage"
              Title="Камера">
     <Grid RowDefinitions="*,Auto">
-        <local:CameraPreviewView x:Name="PreviewView"
-                                 BackgroundColor="Black" />
+        <local:CameraPreviewView x:Name="PreviewView" />
         <Label x:Name="PreviewStatus"
                Grid.Row="1"
                Margin="16"
