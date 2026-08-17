@@ -13,7 +13,6 @@ namespace AndroidCameraShare
                 .ConfigureFonts(fonts =>
                 {
                     fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                    fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
                 })
                 .ConfigureMauiHandlers(handlers =>
                 {
@@ -34,7 +33,6 @@ namespace AndroidCameraShare
             builder.Services.AddTransient<SettingsPage>();
             builder.Services.AddTransient<CameraPreviewPage>();
             builder.Services.AddSingleton<AppShell>();
-
 
 #if DEBUG
             builder.Logging.AddDebug();

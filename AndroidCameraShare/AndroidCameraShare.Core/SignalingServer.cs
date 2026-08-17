@@ -5,7 +5,7 @@ using System.Text;
 namespace AndroidCameraShare.Core
 {
     /// <summary>
-    /// HTTP на порту из настроек. Камеру не трогает.
+    /// HTTP на порту из настроек. Камеру открывает только через IOfferHandler.
     /// </summary>
     public sealed class SignalingServer : IAsyncDisposable
     {

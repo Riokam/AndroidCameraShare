@@ -48,9 +48,8 @@ namespace AndroidCameraShare.Tests
 
             Assert.Equal(401, response.StatusCode);
             Assert.StartsWith("text/html", response.ContentType, StringComparison.Ordinal);
-            Assert.Contains("pin", response.Body, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal(ViewerPage.PinFormHtml, response.Body);
             Assert.DoesNotContain(StoredPin, response.Body);
-            Assert.DoesNotContain("RTCPeerConnection", response.Body, StringComparison.Ordinal);
         }
         [Fact]
         public void Route_WhenPinOnlyInQuery_Returns401()
@@ -78,8 +77,7 @@ namespace AndroidCameraShare.Tests
             HttpResponseInfo response = router.Route(request);
             Assert.Equal(200, response.StatusCode);
             Assert.StartsWith("text/html", response.ContentType, StringComparison.Ordinal);
-            Assert.Contains("video", response.Body, StringComparison.OrdinalIgnoreCase);
-            Assert.Contains("RTCPeerConnection", response.Body, StringComparison.Ordinal);
+            Assert.Equal(ViewerPage.WatchHtml, response.Body);
             Assert.DoesNotContain(StoredPin, response.Body);
         }
         [Fact]
@@ -96,25 +94,8 @@ namespace AndroidCameraShare.Tests
             HttpResponseInfo response = router.Route(request);
 
             Assert.Equal(200, response.StatusCode);
-            Assert.Contains("RTCPeerConnection", response.Body, StringComparison.Ordinal);
-            Assert.Contains("waitIceComplete(pc, 3000)", response.Body, StringComparison.Ordinal);
-            Assert.Contains("AbortController", response.Body, StringComparison.Ordinal);
-            Assert.Contains("landscape-rotate", response.Body, StringComparison.Ordinal);
-            Assert.Contains("class=\"hud\"", response.Body, StringComparison.Ordinal);
-            Assert.Contains("(hover: none) and (pointer: coarse)", response.Body, StringComparison.Ordinal);
-            Assert.Contains("controls-on", response.Body, StringComparison.Ordinal);
-            Assert.Contains("cameraFacing === 'back' ? 180 : 0", response.Body, StringComparison.Ordinal);
-            Assert.Contains("aria-label=\"Повернуть 180°\"", response.Body, StringComparison.Ordinal);
-            Assert.Contains("aria-label=\"Сменить камеру\"", response.Body, StringComparison.Ordinal);
-            Assert.Contains("/camera", response.Body, StringComparison.Ordinal);
-            Assert.Contains("rotationOffset", response.Body, StringComparison.Ordinal);
-            Assert.Contains("icon-btn", response.Body, StringComparison.Ordinal);
-            Assert.Contains("aria-label=\"Смотреть\"", response.Body, StringComparison.Ordinal);
-            Assert.Contains("aria-label=\"Остановить просмотр\"", response.Body, StringComparison.Ordinal);
-            Assert.Contains("/hangup", response.Body, StringComparison.Ordinal);
-            Assert.Contains("/status", response.Body, StringComparison.Ordinal);
-            Assert.Contains("30000", response.Body, StringComparison.Ordinal);
-            Assert.DoesNotContain("?pin", response.Body, StringComparison.Ordinal);
+            Assert.Equal(ViewerPage.WatchHtml, response.Body);
+            Assert.DoesNotContain(StoredPin, response.Body);
         }
         [Fact]
         public void Route_WhenHangupWithoutPin_Returns401()

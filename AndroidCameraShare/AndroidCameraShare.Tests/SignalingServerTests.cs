@@ -3,18 +3,11 @@ using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Xunit.Abstractions;
 
 namespace AndroidCameraShare.Tests
 {
     public class SignalingServerTests
     {
-        private readonly ITestOutputHelper _output;
-        public SignalingServerTests(ITestOutputHelper output)
-        {
-            _output = output;
-        }
-
         [Fact]
         public async Task TryStart_WhenLocalhost_HealthReturnsJson()
         {

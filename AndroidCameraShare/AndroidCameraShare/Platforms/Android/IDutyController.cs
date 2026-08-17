@@ -1,7 +1,7 @@
-﻿namespace AndroidCameraShare.Core
+namespace AndroidCameraShare
 {
     /// <summary>
-    /// Вкл/выкл дежурства.
+    /// Вкл/выкл дежурства. Только Android: HTTP + foreground-сервис.
     /// </summary>
     public interface IDutyController
     {

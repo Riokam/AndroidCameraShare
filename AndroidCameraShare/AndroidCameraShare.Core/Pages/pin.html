@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Няня</title>
+</head>
+<body>
+  <p>Введите PIN</p>
+  <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
+  <button id="enter" type="button">Открыть</button>
+  <script>
+    document.getElementById('enter').onclick = function () {
+      var pin = document.getElementById('pin').value;
+      if (pin.length !== 4) {
+        return;
+      }
+      document.cookie = 'pin=' + encodeURIComponent(pin) + '; Path=/; SameSite=Strict';
+      location.reload();
+    };
+  </script>
+</body>
+</html>
