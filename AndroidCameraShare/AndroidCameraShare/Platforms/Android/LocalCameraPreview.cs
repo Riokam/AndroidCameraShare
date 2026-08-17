@@ -1,8 +1,10 @@
 using Android.Content;
 using Android.Graphics;
 using Android.Hardware.Camera2;
+using Android.Hardware.Camera2.Params;
 using Android.OS;
 using Android.Views;
+using Java.Util.Concurrent;
 using AndroidCameraShare.Core;
 using Microsoft.Extensions.Logging;
 using Application = Android.App.Application;
@@ -224,10 +226,7 @@ namespace AndroidCameraShare
                 }
 
                 builder.AddTarget(previewSurface);
-                device.CreateCaptureSession(
-                    new List<Surface> { previewSurface },
-                    new SessionCallback(this, builder),
-                    _handler);
+                StartCaptureSession(device, previewSurface, builder);
             }
             catch (Exception ex)
             {
@@ -241,6 +240,30 @@ namespace AndroidCameraShare
                 {
                 }
             }
+        }
+
+        /// <summary>
+        /// С API 28 сессия через SessionConfiguration; старый список Surface на 30+ режется.
+        /// </summary>
+        private void StartCaptureSession(CameraDevice device, Surface previewSurface, CaptureRequest.Builder builder)
+        {
+            SessionCallback callback = new SessionCallback(this, builder);
+            Handler handler = _handler ?? throw new InvalidOperationException("preview handler");
+            if (OperatingSystem.IsAndroidVersionAtLeast(28))
+            {
+                OutputConfiguration output = new OutputConfiguration(previewSurface);
+                SessionConfiguration config = new SessionConfiguration(
+                    (int)SessionType.Regular,
+                    new List<OutputConfiguration> { output },
+                    new HandlerExecutor(handler),
+                    callback);
+                device.CreateCaptureSession(config);
+                return;
+            }
+
+#pragma warning disable CA1422
+            device.CreateCaptureSession(new List<Surface> { previewSurface }, callback, handler);
+#pragma warning restore CA1422
         }
 
         private void OnSessionReady(CameraCaptureSession session, CaptureRequest.Builder builder)
@@ -346,6 +369,26 @@ namespace AndroidCameraShare
             {
                 _owner._logger.LogWarning("Превью: сессия Camera2 не собралась");
                 _owner.Failed?.Invoke("Не удалось открыть превью");
+            }
+        }
+
+        private sealed class HandlerExecutor : Java.Lang.Object, IExecutor
+        {
+            private readonly Handler _handler;
+
+            public HandlerExecutor(Handler handler)
+            {
+                _handler = handler;
+            }
+
+            public void Execute(Java.Lang.IRunnable? command)
+            {
+                if (command is null)
+                {
+                    return;
+                }
+
+                _handler.Post(command);
             }
         }
     }

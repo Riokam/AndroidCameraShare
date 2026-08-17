@@ -162,11 +162,10 @@ namespace AndroidCameraShare
             _videoTrack = factory.CreateVideoTrack("video0", _videoSource)
                 ?? throw new InvalidOperationException("VideoTrack");
 
-            PeerConnection.IceServer? stun = PeerConnection.IceServer.InvokeBuilder("stun:stun.l.google.com:19302").CreateIceServer();
-            if (stun is null)
-            {
-                throw new InvalidOperationException("STUN");
-            }
+            PeerConnection.IceServer.Builder iceBuilder = PeerConnection.IceServer.InvokeBuilder("stun:stun.l.google.com:19302")
+                ?? throw new InvalidOperationException("STUN builder");
+            PeerConnection.IceServer stun = iceBuilder.CreateIceServer()
+                ?? throw new InvalidOperationException("STUN");
 
             List<PeerConnection.IceServer> iceServers = [stun];
             PeerConnection.RTCConfiguration rtcConfig = new PeerConnection.RTCConfiguration(iceServers)
@@ -355,10 +354,13 @@ namespace AndroidCameraShare
                 ?? throw new InvalidOperationException("Egl context");
             DefaultVideoEncoderFactory encoder = new DefaultVideoEncoderFactory(eglContext, true, true);
             DefaultVideoDecoderFactory decoder = new DefaultVideoDecoderFactory(eglContext);
-            _factory = PeerConnectionFactory.InvokeBuilder()
-                .SetVideoEncoderFactory(encoder)
-                .SetVideoDecoderFactory(decoder)
-                .CreatePeerConnectionFactory()
+            PeerConnectionFactory.Builder factoryBuilder = PeerConnectionFactory.InvokeBuilder()
+                ?? throw new InvalidOperationException("PeerConnectionFactory.Builder");
+            factoryBuilder = factoryBuilder.SetVideoEncoderFactory(encoder)
+                ?? throw new InvalidOperationException("encoder factory");
+            factoryBuilder = factoryBuilder.SetVideoDecoderFactory(decoder)
+                ?? throw new InvalidOperationException("decoder factory");
+            _factory = factoryBuilder.CreatePeerConnectionFactory()
                 ?? throw new InvalidOperationException("PeerConnectionFactory");
             _logger.LogInformation("WebRTC factory создан");
         }
@@ -370,9 +372,10 @@ namespace AndroidCameraShare
                 return;
             }
 
-            PeerConnectionFactory.InitializationOptions options = PeerConnectionFactory.InitializationOptions
-                .InvokeBuilder(context)
-                .CreateInitializationOptions()
+            PeerConnectionFactory.InitializationOptions.Builder initBuilder =
+                PeerConnectionFactory.InitializationOptions.InvokeBuilder(context)
+                ?? throw new InvalidOperationException("WebRTC init builder");
+            PeerConnectionFactory.InitializationOptions options = initBuilder.CreateInitializationOptions()
                 ?? throw new InvalidOperationException("WebRTC init");
             PeerConnectionFactory.Initialize(options);
         }
