@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AndroidCameraShare.SettingsPage"
+             Title="Настройки">
+
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="16">
+
+            <Label Text="Порт HTTP" FontAttributes="Bold" />
+            <Entry x:Name="PortEntry"
+                   Keyboard="Numeric"
+                   MaxLength="5" />
+            <Label x:Name="PortErrorLabel"
+                   TextColor="Red"
+                   IsVisible="False" />
+            <Label x:Name="PortHintLabel"
+                   IsVisible="False" />
+            <Button Text="Сохранить порт" Clicked="OnSavePortClicked" />
+
+            <Label Text="PIN (4 цифры)" FontAttributes="Bold" />
+            <Entry x:Name="PinEntry"
+                   Keyboard="Numeric"
+                   MaxLength="4"
+                   IsPassword="True"
+                   Placeholder="не менять, если пусто" />
+            <Label x:Name="PinErrorLabel"
+                   TextColor="Red"
+                   IsVisible="False" />
+            <Button Text="Сохранить PIN" Clicked="OnSavePinClicked" />
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <Label Text="Автозапуск после перезагрузки"
+                       VerticalOptions="Center" />
+                <Switch x:Name="AutostartSwitch"
+                        Grid.Column="1"
+                        VerticalOptions="Center"
+                        Toggled="OnAutostartToggled" />
+            </Grid>
+
+            <Label Text="Режим питания" FontAttributes="Bold" />
+            <Picker x:Name="PowerPicker" SelectedIndexChanged="OnPowerChanged">
+                <Picker.Items>
+                    <x:String>Экономия</x:String>
+                    <x:String>Надёжный приём</x:String>
+                </Picker.Items>
+            </Picker>
+
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <Label Text="Гасить экран при просмотре"
+                       VerticalOptions="Center" />
+                <Switch x:Name="DimScreenSwitch"
+                        Grid.Column="1"
+                        VerticalOptions="Center"
+                        Toggled="OnDimScreenToggled" />
+            </Grid>
+            <Button Text="Разрешить гасить экран"
+                    Clicked="OnOpenWriteSettingsClicked" />
+
+            <Label x:Name="VersionLabel"
+                   FontSize="13"
+                   TextColor="Gray"
+                   Margin="0,16,0,0" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

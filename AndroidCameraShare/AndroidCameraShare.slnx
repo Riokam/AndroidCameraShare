@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="AndroidCameraShare.Core/AndroidCameraShare.Core.csproj" />
+  <Project Path="AndroidCameraShare.Tests/AndroidCameraShare.Tests.csproj" />
+  <Project Path="AndroidCameraShare/AndroidCameraShare.csproj">
+    <Deploy Solution="Debug|*" />
+  </Project>
+</Solution>

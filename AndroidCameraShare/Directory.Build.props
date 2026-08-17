@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <!-- SemVer для UI, /health и сборок. Меняйте при выпуске. -->
+    <Version>1.1.0</Version>
+    <!-- Android versionName — то, что видит пользователь. -->
+    <ApplicationDisplayVersion>$(Version)</ApplicationDisplayVersion>
+    <!-- Android versionCode: только вверх при каждой установке поверх предыдущей. -->
+    <ApplicationVersion>2</ApplicationVersion>
+    <!-- Без git-хеша в версии, иначе /health и тесты плывут. -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

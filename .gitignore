@@ -1,0 +1,66 @@
+# Сборки
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+artifacts/
+publish/
+TestResults/
+*.binlog
+
+# Visual Studio / Rider / VS Code
+.vs/
+.idea/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.rsuser
+.vscode/*
+!.vscode/extensions.json
+
+# NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+project.lock.json
+project.fragment.lock.json
+
+# Android / MAUI
+*.apk
+*.apks
+*.aab
+*.ap_
+*.dex
+*.jarsigner
+local.properties
+*.keystore
+*.jks
+!debug.keystore
+
+# Тесты и покрытие
+coverage*.json
+coverage*.xml
+*.coverage
+*.coveragexml
+
+# ОС и временные
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+*~
+*.tmp
+*.temp
+*.swp
+*.log
+
+# Локальные заметки (IP, порты отладки)
+AdbPairWiFi.txt
+
+appsettings.*.local.json
+secrets.json
+.env
+.env.*

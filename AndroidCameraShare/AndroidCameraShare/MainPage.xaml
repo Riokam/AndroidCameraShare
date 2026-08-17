@@ -1,0 +1,52 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AndroidCameraShare.MainPage"
+             Title="Няня">
+    <ContentPage.ToolbarItems>
+        <ToolbarItem Text="Настройки" Clicked="OnSettingsClicked" />
+    </ContentPage.ToolbarItems>
+    <ScrollView>
+        <VerticalStackLayout Padding="24" Spacing="16">
+
+            <HorizontalStackLayout Spacing="12" VerticalOptions="Center">
+                <Label Text="Дежурный режим"
+                       VerticalOptions="Center"
+                       FontAttributes="Bold" />
+                <Switch x:Name="DutySwitch"
+                        Toggled="OnDutyToggled" />
+            </HorizontalStackLayout>
+
+            <Label x:Name="StatusLabel"
+                   Text="Выключено"
+                   FontSize="18" />
+
+            <Label x:Name="AddressLabel"
+                   FontSize="16"
+                   IsVisible="False" />
+
+            <Image x:Name="QrImage"
+                   WidthRequest="220"
+                   HeightRequest="220"
+                   HorizontalOptions="Center"
+                   IsVisible="False" />
+
+            <Label x:Name="LastErrorLabel"
+                   TextColor="Red"
+                   IsVisible="False" />
+
+            <Picker x:Name="CameraPicker"
+                    Title="Камера"
+                    SelectedIndexChanged="OnCameraChanged">
+                <Picker.Items>
+                    <x:String>Основная</x:String>
+                    <x:String>Фронтальная</x:String>
+                </Picker.Items>
+            </Picker>
+
+            <Button Text="Проверить камеру"
+                    Clicked="OnPreviewCameraClicked" />
+
+        </VerticalStackLayout>
+    </ScrollView>
+</ContentPage>

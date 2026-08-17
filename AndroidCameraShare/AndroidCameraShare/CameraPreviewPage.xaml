@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="AndroidCameraShare.CameraPreviewPage"
+             Title="Камера">
+    <Grid RowDefinitions="*,Auto">
+        <ContentView x:Name="PreviewHost"
+                     BackgroundColor="Black" />
+        <Label x:Name="PreviewStatus"
+               Grid.Row="1"
+               Margin="16"
+               FontSize="16" />
+    </Grid>
+</ContentPage>
