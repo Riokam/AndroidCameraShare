@@ -11,16 +11,40 @@ namespace AndroidCameraShare.Core
 
         private static string ReadDisplay()
         {
-            AssemblyInformationalVersionAttribute? attr = typeof(AppVersion).Assembly
-                .GetCustomAttribute<AssemblyInformationalVersionAttribute>();
-            string? value = attr?.InformationalVersion;
+            Assembly assembly = typeof(AppVersion).Assembly;
+            string? informational = assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion;
+            string fromInfo = TrimRevision(informational);
+            if (IsUsable(fromInfo))
+            {
+                return fromInfo;
+            }
+
+            // Атрибут на Android может срезать линкер; Version сборки остаётся.
+            Version? assemblyVersion = assembly.GetName().Version;
+            if (assemblyVersion is not null)
+            {
+                return assemblyVersion.ToString(3);
+            }
+
+            return "0.0.0";
+        }
+
+        private static string TrimRevision(string? value)
+        {
             if (string.IsNullOrWhiteSpace(value))
             {
-                return "0.0.0";
+                return string.Empty;
             }
 
             int plus = value.IndexOf('+', StringComparison.Ordinal);
             return plus < 0 ? value : value[..plus];
+        }
+
+        private static bool IsUsable(string value)
+        {
+            return !string.IsNullOrWhiteSpace(value) && value != "0.0.0";
         }
     }
 }

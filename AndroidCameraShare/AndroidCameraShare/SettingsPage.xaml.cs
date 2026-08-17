@@ -25,8 +25,31 @@ public partial class SettingsPage : ContentPage
         AutostartSwitch.IsToggled = _settings.IsAutostartEnabled;
         PowerPicker.SelectedIndex = _settings.PowerMode == PowerMode.Reliable ? 1 : 0;
         DimScreenSwitch.IsToggled = _settings.ShouldDimScreen;
-        VersionLabel.Text = $"Версия {AppVersion.Display}";
+        VersionLabel.Text = FormatInstalledVersion();
         _isUpdatingUi = false;
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        VersionLabel.Text = FormatInstalledVersion();
+    }
+
+    /// <summary>
+    /// versionName и versionCode установленного APK — то, что видит система, не атрибут DLL.
+    /// </summary>
+    private static string FormatInstalledVersion()
+    {
+        string name = AppInfo.Current.VersionString;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            name = AppVersion.Display;
+        }
+
+        string code = AppInfo.Current.BuildString;
+        return string.IsNullOrWhiteSpace(code)
+            ? $"Версия {name}"
+            : $"Версия {name} ({code})";
     }
 
     private void OnSavePortClicked(object? sender, EventArgs e)
