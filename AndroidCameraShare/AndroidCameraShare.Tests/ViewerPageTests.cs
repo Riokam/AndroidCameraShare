@@ -37,6 +37,10 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("/hangup", html, StringComparison.Ordinal);
             Assert.Contains("/status", html, StringComparison.Ordinal);
             Assert.Contains("30000", html, StringComparison.Ordinal);
+            Assert.Contains("navigator.wakeLock.request('screen')", html, StringComparison.Ordinal);
+            Assert.Contains("visibilitychange", html, StringComparison.Ordinal);
+            Assert.Contains("pageshow", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("window.addEventListener('pagehide'", html, StringComparison.Ordinal);
             Assert.DoesNotContain("?pin", html, StringComparison.Ordinal);
         }
     }

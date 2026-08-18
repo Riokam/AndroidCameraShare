@@ -157,6 +157,7 @@
       var pc = null;
       var reconnectTimer = null;
       var batteryTimer = null;
+      var screenWakeLock = null;
       var generation = 0;
       var stopped = false;
       var cameraFacing = 'back';
@@ -256,6 +257,47 @@
         syncControls(isWatching);
       }
 
+      async function acquireScreenWakeLock() {
+        if (stopped || document.visibilityState !== 'visible'
+            || !('wakeLock' in navigator) || screenWakeLock) {
+          return;
+        }
+        try {
+          screenWakeLock = await navigator.wakeLock.request('screen');
+          screenWakeLock.addEventListener('release', function () {
+            screenWakeLock = null;
+          }, { once: true });
+        } catch (error) {
+          // API недоступен на небезопасном HTTP или ОС запретила блокировку.
+          screenWakeLock = null;
+        }
+      }
+
+      async function releaseScreenWakeLock() {
+        var wakeLock = screenWakeLock;
+        screenWakeLock = null;
+        if (!wakeLock) {
+          return;
+        }
+        try {
+          await wakeLock.release();
+        } catch (error) {
+          // Браузер мог уже снять блокировку при уходе страницы в фон.
+        }
+      }
+
+      function restoreViewingAfterResume() {
+        if (stopped || document.visibilityState !== 'visible') {
+          return;
+        }
+        acquireScreenWakeLock();
+        var state = pc ? pc.iceConnectionState : 'closed';
+        if (state === 'failed' || state === 'disconnected' || state === 'closed') {
+          clearReconnect();
+          connect();
+        }
+      }
+
       function waitIceComplete(peer, timeoutMs) {
         return new Promise(function (resolve) {
           var finished = false;
@@ -334,6 +376,7 @@
         generation += 1;
         clearReconnect();
         closePeer();
+        await releaseScreenWakeLock();
         setWatchingUi(false);
         setStatus('Просмотр остановлен', false);
         await hangup();
@@ -379,6 +422,7 @@
         closePeer();
         setWatchingUi(true);
         setStatus('Подключение…', false);
+        acquireScreenWakeLock();
 
         var pin = cookiePin();
         if (pin.length !== 4) {
@@ -483,6 +527,12 @@
         syncFullscreenUi();
         layoutVideo();
       });
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') {
+          restoreViewingAfterResume();
+        }
+      });
+      window.addEventListener('pageshow', restoreViewingAfterResume);
       async function switchCamera() {
         var pin = cookiePin();
         if (pin.length !== 4) {
@@ -510,11 +560,6 @@
           return;
         }
         document.body.classList.toggle('controls-on');
-      });
-      window.addEventListener('pagehide', function () {
-        if (!stopped) {
-          hangup();
-        }
       });
       batteryTimer = setInterval(refreshBattery, 30000);
       refreshBattery();

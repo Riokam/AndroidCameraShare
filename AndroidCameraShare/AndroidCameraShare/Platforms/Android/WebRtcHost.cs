@@ -29,6 +29,7 @@ namespace AndroidCameraShare
         private VideoTrack? _videoTrack;
         private PeerConnection? _peerConnection;
         private CancellationTokenSource? _iceWatchdog;
+        private CancellationTokenSource? _disconnectGrace;
         private SessionObserver? _observer;
         private bool _sessionLive;
         private static int _isFactoryInitialized;
@@ -230,20 +231,66 @@ namespace AndroidCameraShare
             _ = StopSessionAsync();
         }
 
-        private void OnIceDisconnected()
+        private void OnIceDisconnected(PeerConnection.IceConnectionState? state)
         {
             if (!_sessionLive)
             {
                 return;
             }
 
-            _logger.LogInformation("Зритель ушёл");
-            _ = StopSessionAsync();
+            CancelDisconnectGrace();
+            if (state == PeerConnection.IceConnectionState.Failed)
+            {
+                _logger.LogInformation("ICE завершился ошибкой, сессия закрывается");
+                _ = StopSessionAsync();
+                return;
+            }
+
+            CancellationTokenSource grace = new CancellationTokenSource();
+            _disconnectGrace = grace;
+            _logger.LogInformation(
+                "ICE disconnected, ждём восстановление {GraceSeconds} с",
+                NannyConstants.IceDisconnectGrace.TotalSeconds);
+            _ = StopAfterDisconnectGraceAsync(grace);
         }
 
         private void OnIceConnected()
         {
             _iceWatchdog?.Cancel();
+            CancelDisconnectGrace();
+        }
+
+        private async Task StopAfterDisconnectGraceAsync(CancellationTokenSource grace)
+        {
+            try
+            {
+                await Task.Delay(NannyConstants.IceDisconnectGrace, grace.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+
+            if (Interlocked.CompareExchange(ref _disconnectGrace, null, grace) != grace)
+            {
+                return;
+            }
+
+            grace.Dispose();
+            _logger.LogInformation("Зритель не вернулся после ICE disconnected");
+            await StopSessionAsync();
+        }
+
+        private void CancelDisconnectGrace()
+        {
+            CancellationTokenSource? grace = Interlocked.Exchange(ref _disconnectGrace, null);
+            if (grace is null)
+            {
+                return;
+            }
+
+            grace.Cancel();
+            grace.Dispose();
         }
 
         private async Task TeardownCoreAsync(bool resetCounter)
@@ -257,6 +304,7 @@ namespace AndroidCameraShare
             _iceWatchdog?.Cancel();
             _iceWatchdog?.Dispose();
             _iceWatchdog = null;
+            CancelDisconnectGrace();
 
             // Сначала снимаем тип camera у FGS, потом закрываем камеру — иначе Android гасит службу.
             if (resetCounter)
@@ -501,7 +549,7 @@ namespace AndroidCameraShare
                 _iceComplete = iceComplete;
             }
 
-            public Action? OnDisconnected { get; set; }
+            public Action<PeerConnection.IceConnectionState?>? OnDisconnected { get; set; }
 
             public Action? OnConnected { get; set; }
 
@@ -523,7 +571,7 @@ namespace AndroidCameraShare
                 if (state == PeerConnection.IceConnectionState.Failed
                     || state == PeerConnection.IceConnectionState.Disconnected)
                 {
-                    OnDisconnected?.Invoke();
+                    OnDisconnected?.Invoke(state);
                 }
             }
 

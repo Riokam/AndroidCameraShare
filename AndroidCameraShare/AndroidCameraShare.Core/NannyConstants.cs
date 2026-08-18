@@ -40,6 +40,11 @@
         public static readonly TimeSpan IceTimeout = TimeSpan.FromSeconds(15);
 
         /// <summary>
+        /// Даём краткому ICE disconnected восстановиться перед закрытием сессии.
+        /// </summary>
+        public static readonly TimeSpan IceDisconnectGrace = TimeSpan.FromSeconds(5);
+
+        /// <summary>
         /// Сколько ждём host-кандидаты перед отправкой SDP. STUN complete может не прийти.
         /// </summary>
         public static readonly TimeSpan IceGatherTimeout = TimeSpan.FromSeconds(3);
