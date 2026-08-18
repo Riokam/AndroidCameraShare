@@ -1,4 +1,5 @@
 using AndroidCameraShare.Core;
+using Microsoft.Extensions.Logging;
 
 namespace AndroidCameraShare;
 
@@ -7,14 +8,20 @@ public partial class SettingsPage : ContentPage
     private readonly AppSettings _settings;
     private readonly AppSettingsStore _store;
     private readonly SignalingServer _server;
+    private readonly ILogger<SettingsPage> _logger;
     private bool _isUpdatingUi;
 
-    public SettingsPage(AppSettings settings, AppSettingsStore store, SignalingServer server)
+    public SettingsPage(
+        AppSettings settings,
+        AppSettingsStore store,
+        SignalingServer server,
+        ILogger<SettingsPage> logger)
     {
         InitializeComponent();
         _settings = settings;
         _store = store;
         _server = server;
+        _logger = logger;
         LoadForm();
     }
 
@@ -25,6 +32,7 @@ public partial class SettingsPage : ContentPage
         AutostartSwitch.IsToggled = _settings.IsAutostartEnabled;
         PowerPicker.SelectedIndex = _settings.PowerMode == PowerMode.Reliable ? 1 : 0;
         DimScreenSwitch.IsToggled = _settings.ShouldDimScreen;
+        ThemePicker.SelectedIndex = (int)_settings.ThemeMode;
         VersionLabel.Text = FormatInstalledVersion();
         _isUpdatingUi = false;
     }
@@ -127,6 +135,20 @@ public partial class SettingsPage : ContentPage
 
         _settings.ShouldDimScreen = e.Value;
         _store.Save();
+    }
+
+    private void OnThemeChanged(object? sender, EventArgs e)
+    {
+        if (_isUpdatingUi || ThemePicker.SelectedIndex < 0)
+        {
+            return;
+        }
+
+        AppThemeMode themeMode = (AppThemeMode)ThemePicker.SelectedIndex;
+        _settings.ThemeMode = themeMode;
+        _store.Save();
+        App.ApplyTheme(themeMode);
+        _logger.LogInformation("Тема приложения изменена: {ThemeMode}", themeMode);
     }
 
     private void OnOpenWriteSettingsClicked(object? sender, EventArgs e)

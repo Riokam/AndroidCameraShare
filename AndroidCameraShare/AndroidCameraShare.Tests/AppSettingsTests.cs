@@ -15,8 +15,9 @@ namespace AndroidCameraShare.Tests
             Assert.False(settings.IsAutostartEnabled);
             Assert.Equal(PowerMode.Economy, settings.PowerMode);
             Assert.True(settings.ShouldDimScreen);
-
+            Assert.Equal(AppThemeMode.System, settings.ThemeMode);
         }
+
         [Fact]
         public void ToggleCameraFacing_WhenBack_SwitchesToFrontAndBack()
         {

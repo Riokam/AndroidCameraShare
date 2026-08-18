@@ -9,6 +9,8 @@ namespace AndroidCameraShare
         Theme = "@style/Maui.SplashTheme",
         MainLauncher = true,
         LaunchMode = LaunchMode.SingleTop,
+        // Разрешаем портретный и горизонтальный режимы во всех направлениях.
+        ScreenOrientation = ScreenOrientation.FullSensor,
         ConfigurationChanges = ConfigChanges.ScreenSize
             | ConfigChanges.Orientation
             | ConfigChanges.UiMode

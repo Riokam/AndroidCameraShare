@@ -10,6 +10,7 @@ namespace AndroidCameraShare
         private const string AutostartKey = "autostart";
         private const string PowerModeKey = "powerMode";
         private const string DimScreenKey = "dimScreen";
+        private const string ThemeModeKey = "themeMode";
         private readonly AppSettings _settings;
 
         public AppSettingsStore(AppSettings settings)
@@ -44,6 +45,11 @@ namespace AndroidCameraShare
             }
 
             _settings.ShouldDimScreen = Preferences.Default.Get(DimScreenKey, true);
+
+            int theme = Preferences.Default.Get(ThemeModeKey, (int)AppThemeMode.System);
+            _settings.ThemeMode = Enum.IsDefined(typeof(AppThemeMode), theme)
+                ? (AppThemeMode)theme
+                : AppThemeMode.System;
         }
 
         public void Save()
@@ -54,6 +60,7 @@ namespace AndroidCameraShare
             Preferences.Default.Set(AutostartKey, _settings.IsAutostartEnabled);
             Preferences.Default.Set(PowerModeKey, (int)_settings.PowerMode);
             Preferences.Default.Set(DimScreenKey, _settings.ShouldDimScreen);
+            Preferences.Default.Set(ThemeModeKey, (int)_settings.ThemeMode);
         }
     }
 }

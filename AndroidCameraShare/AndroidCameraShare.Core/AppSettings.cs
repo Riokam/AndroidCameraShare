@@ -23,6 +23,11 @@ namespace AndroidCameraShare.Core
 
         public PowerMode PowerMode { get; set; } = PowerMode.Economy;
 
+        /// <summary>
+        /// Тема интерфейса. По умолчанию приложение следует теме Android.
+        /// </summary>
+        public AppThemeMode ThemeMode { get; set; } = AppThemeMode.System;
+
         public bool TrySetPort(int port)
         {
             if (port < NannyConstants.MinPort || port > NannyConstants.MaxPort)

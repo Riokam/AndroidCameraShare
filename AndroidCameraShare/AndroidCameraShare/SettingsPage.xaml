@@ -7,6 +7,16 @@
     <ScrollView>
         <VerticalStackLayout Padding="24" Spacing="16">
 
+            <Label Text="Тема приложения" FontAttributes="Bold" />
+            <Picker x:Name="ThemePicker"
+                    SelectedIndexChanged="OnThemeChanged">
+                <Picker.Items>
+                    <x:String>Как в системе</x:String>
+                    <x:String>Светлая</x:String>
+                    <x:String>Тёмная</x:String>
+                </Picker.Items>
+            </Picker>
+
             <Label Text="Порт HTTP" FontAttributes="Bold" />
             <Entry x:Name="PortEntry"
                    Keyboard="Numeric"
