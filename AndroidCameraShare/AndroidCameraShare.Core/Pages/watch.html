@@ -189,6 +189,9 @@
       <button id="watch" class="icon-btn" type="button" hidden aria-label="Смотреть" title="Смотреть">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>
       </button>
+      <button id="retry" class="icon-btn" type="button" aria-label="Переподключить" title="Снова">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17.65 6.35A7.95 7.95 0 0 0 12 4a8 8 0 1 0 7.75 10h-2.1A6 6 0 1 1 16.2 8.2L13 11h7V4l-2.35 2.35Z"/></svg>
+      </button>
       <button id="flip" class="icon-btn" type="button" aria-label="Повернуть 180°" title="Повернуть 180°">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5V2L8 6l4 4V7c2.76 0 5 2.24 5 5s-2.24 5-5 5-5-2.24-5-5H5c0 3.87 3.13 7 7 7s7-3.13 7-7-3.13-7-7-7z"/></svg>
       </button>
@@ -209,16 +212,20 @@
       var battery = document.getElementById('battery');
       var stopBtn = document.getElementById('stop');
       var watchBtn = document.getElementById('watch');
+      var retryBtn = document.getElementById('retry');
       var flipBtn = document.getElementById('flip');
       var cameraBtn = document.getElementById('camera');
       var fsBtn = document.getElementById('fs');
       var pc = null;
       var reconnectTimer = null;
+      var disconnectTimer = null;
       var batteryTimer = null;
       var screenWakeLock = null;
       var generation = 0;
       var stopped = false;
       var sessionId = null;
+      var lastFrameAt = 0;
+      var frameCallbackStarted = false;
       var cameraFacing = 'back';
       var userFlip = false;
 
@@ -317,6 +324,7 @@
       function setWatchingUi(isWatching) {
         stopBtn.hidden = !isWatching;
         watchBtn.hidden = isWatching;
+        retryBtn.hidden = !isWatching;
         syncControls(isWatching);
       }
 
@@ -354,11 +362,44 @@
           return;
         }
         acquireScreenWakeLock();
+        if (!pc && generation === 0) {
+          return;
+        }
         var state = pc ? pc.iceConnectionState : 'closed';
         if (state === 'failed' || state === 'disconnected' || state === 'closed') {
           clearReconnect();
-          connect();
+          reconnectOwnedSession();
+          return;
         }
+        if (isVideoStale(2500)) {
+          clearReconnect();
+          reconnectOwnedSession();
+        }
+      }
+
+      function trackVideoFrames() {
+        if (frameCallbackStarted) {
+          return;
+        }
+        frameCallbackStarted = true;
+        if (video.requestVideoFrameCallback) {
+          var onFrame = function () {
+            lastFrameAt = Date.now();
+            video.requestVideoFrameCallback(onFrame);
+          };
+          video.requestVideoFrameCallback(onFrame);
+          return;
+        }
+        video.addEventListener('timeupdate', function () {
+          lastFrameAt = Date.now();
+        });
+      }
+
+      function isVideoStale(thresholdMs) {
+        if (!video.srcObject || video.readyState < 2) {
+          return true;
+        }
+        return lastFrameAt > 0 && Date.now() - lastFrameAt > thresholdMs;
       }
 
       function waitIceComplete(peer, timeoutMs) {
@@ -401,6 +442,10 @@
         if (reconnectTimer) {
           clearTimeout(reconnectTimer);
           reconnectTimer = null;
+        }
+        if (disconnectTimer) {
+          clearTimeout(disconnectTimer);
+          disconnectTimer = null;
         }
       }
 
@@ -507,14 +552,31 @@
           pc.addTransceiver('video', { direction: 'recvonly' });
           pc.ontrack = function (event) {
             video.srcObject = event.streams[0];
+            trackVideoFrames();
             layoutVideo();
           };
           pc.oniceconnectionstatechange = function () {
             if (!pc || myGeneration !== generation || stopped) {
               return;
             }
-            if (pc.iceConnectionState === 'failed' || pc.iceConnectionState === 'disconnected') {
+            if (pc.iceConnectionState === 'failed') {
               scheduleReconnect('Связь оборвалась, переподключение…');
+              return;
+            }
+            if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
+              if (disconnectTimer) {
+                clearTimeout(disconnectTimer);
+                disconnectTimer = null;
+              }
+              return;
+            }
+            if (pc.iceConnectionState === 'disconnected' && !disconnectTimer) {
+              disconnectTimer = setTimeout(function () {
+                disconnectTimer = null;
+                if (pc && pc.iceConnectionState === 'disconnected') {
+                  scheduleReconnect('Связь оборвалась, переподключение…');
+                }
+              }, 2500);
             }
           };
 
@@ -598,6 +660,10 @@
       watchBtn.onclick = function () {
         stopped = false;
         connect();
+      };
+      retryBtn.onclick = function () {
+        clearReconnect();
+        reconnectOwnedSession();
       };
       flipBtn.onclick = function () {
         userFlip = !userFlip;
