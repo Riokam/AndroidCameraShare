@@ -195,6 +195,37 @@ namespace AndroidCameraShare.Tests
         }
 
         [Fact]
+        public async Task StopAsync_WhenViewerActive_HealthReportsDutyStoppedBeforePortCloses()
+        {
+            int port = GetFreePort();
+            ViewerCounter viewers = new ViewerCounter();
+            viewers.RegisterSession();
+            SignalingServer server = new SignalingServer(
+                CreateSettings(port),
+                viewers,
+                new CollectingLogger<SignalingServer>());
+
+            try
+            {
+                Assert.True(server.TryStart());
+                using HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+
+                Task stopTask = server.StopAsync();
+                HttpResponseMessage response =
+                    await client.GetAsync($"http://127.0.0.1:{port}/health");
+                string body = await response.Content.ReadAsStringAsync();
+
+                Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+                Assert.Contains("\"duty\":false", body, StringComparison.Ordinal);
+                await stopTask;
+            }
+            finally
+            {
+                await server.DisposeAsync();
+            }
+        }
+
+        [Fact]
         public async Task TryStart_WhenSameInstanceAfterStop_SucceedsAndClearsError()
         {
             int port = GetFreePort();
@@ -482,7 +513,7 @@ namespace AndroidCameraShare.Tests
                 HttpResponseMessage response = await client.SendAsync(request);
                 string body = await response.Content.ReadAsStringAsync();
                 Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-                Assert.Equal("{\"battery\":64,\"camera\":\"back\"}", body);
+                Assert.Equal("{\"battery\":64,\"camera\":\"back\",\"duty\":true}", body);
             }
             finally
             {

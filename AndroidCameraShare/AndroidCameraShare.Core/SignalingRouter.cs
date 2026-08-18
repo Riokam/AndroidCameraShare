@@ -8,12 +8,18 @@
         private readonly AppSettings _settings;
         private readonly ViewerCounter _viewers;
         private readonly IBatteryStatus? _battery;
+        private readonly Func<bool> _isDutyActive;
 
-        public SignalingRouter(AppSettings settings, ViewerCounter viewers, IBatteryStatus? battery = null)
+        public SignalingRouter(
+            AppSettings settings,
+            ViewerCounter viewers,
+            IBatteryStatus? battery = null,
+            Func<bool>? isDutyActive = null)
         {
             _settings = settings;
             _viewers = viewers;
             _battery = battery;
+            _isDutyActive = isDutyActive ?? (() => true);
         }
 
         public HttpResponseInfo Route(HttpRequestInfo request)
@@ -133,7 +139,8 @@
 
         private HttpResponseInfo Health()
         {
-            string json = "{\"duty\":true,\"viewers\":" + _viewers.Count
+            string duty = _isDutyActive() ? "true" : "false";
+            string json = "{\"duty\":" + duty + ",\"viewers\":" + _viewers.Count
                 + ",\"version\":\"" + AppVersion.Display + "\"}";
             return new HttpResponseInfo
             {
@@ -144,7 +151,7 @@
         }
 
         /// <summary>
-        /// PIN уже проверен. Только заряд — без PIN и без /health-полей.
+        /// PIN уже проверен. Возвращаем состояние устройства для активной страницы зрителя.
         /// </summary>
         private HttpResponseInfo Status()
         {
@@ -152,11 +159,13 @@
                 ? percent.ToString()
                 : "null";
             string camera = _settings.CameraFacing == CameraFacing.Front ? "front" : "back";
+            string duty = _isDutyActive() ? "true" : "false";
             return new HttpResponseInfo
             {
                 StatusCode = 200,
                 ContentType = "application/json; charset=utf-8",
-                Body = "{\"battery\":" + battery + ",\"camera\":\"" + camera + "\"}"
+                Body = "{\"battery\":" + battery + ",\"camera\":\"" + camera
+                    + "\",\"duty\":" + duty + "}"
             };
         }
 

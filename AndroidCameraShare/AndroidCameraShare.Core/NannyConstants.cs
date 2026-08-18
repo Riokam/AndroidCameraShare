@@ -71,5 +71,10 @@
         /// Как часто страница зрителя спрашивает заряд. Не логируем каждый опрос.
         /// </summary>
         public const int BatteryPollMs = 30000;
+
+        /// <summary>
+        /// Даём активному зрителю получить причину остановки до закрытия HTTP.
+        /// </summary>
+        public static readonly TimeSpan DutyStopNotificationWindow = TimeSpan.FromMilliseconds(1500);
     }
 }

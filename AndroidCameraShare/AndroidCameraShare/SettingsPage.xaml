@@ -37,6 +37,9 @@
             <Label x:Name="PinErrorLabel"
                    TextColor="Red"
                    IsVisible="False" />
+            <Label x:Name="PinStatusLabel"
+                   FontSize="13"
+                   TextColor="Gray" />
             <Button Text="Сохранить PIN" Clicked="OnSavePinClicked" />
 
             <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">

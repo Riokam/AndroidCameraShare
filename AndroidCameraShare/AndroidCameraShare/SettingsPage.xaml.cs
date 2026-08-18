@@ -34,13 +34,16 @@ public partial class SettingsPage : ContentPage
         DimScreenSwitch.IsToggled = _settings.ShouldDimScreen;
         ThemePicker.SelectedIndex = (int)_settings.ThemeMode;
         VersionLabel.Text = FormatInstalledVersion();
+        UpdatePinStatus();
         _isUpdatingUi = false;
     }
 
-    protected override void OnAppearing()
+    protected override async void OnAppearing()
     {
         base.OnAppearing();
         VersionLabel.Text = FormatInstalledVersion();
+        await _store.EnsurePinLoadedAsync();
+        UpdatePinStatus();
     }
 
     /// <summary>
@@ -106,6 +109,14 @@ public partial class SettingsPage : ContentPage
         }
 
         PinEntry.Text = string.Empty;
+        UpdatePinStatus();
+    }
+
+    private void UpdatePinStatus()
+    {
+        PinStatusLabel.Text = _settings.HasConfiguredPin
+            ? "PIN установлен"
+            : "PIN не установлен";
     }
 
     private void OnAutostartToggled(object? sender, ToggledEventArgs e)

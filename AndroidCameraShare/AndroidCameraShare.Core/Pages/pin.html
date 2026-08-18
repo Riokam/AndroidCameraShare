@@ -140,7 +140,7 @@
       <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h8A2.5 2.5 0 0 1 17 5.5v2.1l3.4-2a1 1 0 0 1 1.6.86v11.08a1 1 0 0 1-1.6.86l-3.4-2v2.1a2.5 2.5 0 0 1-2.5 2.5h-8A2.5 2.5 0 0 1 4 18.5v-13Z"/></svg>
     </div>
     <h1>Подключение к CameraShare</h1>
-    <p class="hint" id="pin-hint">Введите четырёхзначный PIN, указанный в приложении.</p>
+    <p class="hint" id="pin-hint">Введите PIN, указанный в приложении.</p>
     <form id="pin-form" novalidate>
       <label for="pin">PIN-код</label>
       <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}"
@@ -167,7 +167,7 @@
         var pin = input.value;
         if (!/^\d{4}$/.test(pin)) {
           input.setAttribute('aria-invalid', 'true');
-          error.textContent = 'Введите ровно 4 цифры.';
+          error.textContent = 'Введите корректный PIN.';
           input.focus();
           input.select();
           return;

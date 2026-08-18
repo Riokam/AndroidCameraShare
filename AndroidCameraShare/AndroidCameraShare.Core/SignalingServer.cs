@@ -14,6 +14,7 @@ namespace AndroidCameraShare.Core
         private readonly SignalingRouter _router;
         private readonly ILogger<SignalingServer> _logger;
         private readonly IOfferHandler? _offers;
+        private readonly ViewerCounter _viewers;
         private readonly string _listenHost;
         private readonly object _gate = new object();
         private readonly object _requestTasksGate = new object();
@@ -45,7 +46,8 @@ namespace AndroidCameraShare.Core
             string listenHost = "127.0.0.1")
         {
             _settings = settings;
-            _router = new SignalingRouter(settings, viewers, battery);
+            _viewers = viewers;
+            _router = new SignalingRouter(settings, viewers, battery, () => IsRunning);
             _logger = logger;
             _offers = offers;
             _listenHost = listenHost;
@@ -101,12 +103,14 @@ namespace AndroidCameraShare.Core
             HttpListener? listener;
             CancellationTokenSource? cts;
             Task? acceptTask;
+            bool notifyViewer;
 
             lock (_gate)
             {
                 listener = _listener;
                 cts = _cts;
                 acceptTask = _acceptTask;
+                notifyViewer = listener is not null && _viewers.HasViewer;
                 _listener = null;
                 _cts = null;
                 _acceptTask = null;
@@ -114,6 +118,24 @@ namespace AndroidCameraShare.Core
                 ListeningPort = 0;
                 ListeningHost = null;
                 LastError = null;
+            }
+
+            if (_offers is not null)
+            {
+                try
+                {
+                    await _offers.StopSessionAsync();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Сбой остановки WebRTC-сессии");
+                }
+            }
+
+            if (notifyViewer)
+            {
+                // HTTP ещё отвечает duty:false, пока страница получает причину разрыва.
+                await Task.Delay(NannyConstants.DutyStopNotificationWindow);
             }
 
             if (cts is not null)
@@ -140,18 +162,6 @@ namespace AndroidCameraShare.Core
             if (listener is not null)
             {
                 _logger.LogInformation("Дежурный HTTP остановлен");
-            }
-
-            if (_offers is not null)
-            {
-                try
-                {
-                    await _offers.StopSessionAsync();
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Сбой остановки WebRTC-сессии");
-                }
             }
         }
 
@@ -329,7 +339,11 @@ namespace AndroidCameraShare.Core
             string clientKey = request.RemoteEndPoint?.Address.ToString() ?? "unknown";
             bool rateLimitedPath = ShouldRateLimitPin(info);
             HttpResponseInfo response;
-            if (rateLimitedPath && IsPinClientBlocked(clientKey))
+            if (!IsRunning && (isOffer || isHangup || isCamera))
+            {
+                response = DutyStopped();
+            }
+            else if (rateLimitedPath && IsPinClientBlocked(clientKey))
             {
                 context.Response.Headers["Retry-After"] = "1";
                 response = path == "/"
@@ -472,6 +486,16 @@ namespace AndroidCameraShare.Core
                 StatusCode = statusCode,
                 ContentType = "application/json; charset=utf-8",
                 Body = OfferSdp.ToErrorJson(message)
+            };
+        }
+
+        private static HttpResponseInfo DutyStopped()
+        {
+            return new HttpResponseInfo
+            {
+                StatusCode = 503,
+                ContentType = "application/json; charset=utf-8",
+                Body = "{\"error\":\"Дежурный режим выключен\",\"duty\":false}"
             };
         }
 

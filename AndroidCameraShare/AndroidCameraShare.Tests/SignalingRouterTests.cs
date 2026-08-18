@@ -40,6 +40,28 @@ namespace AndroidCameraShare.Tests
             Assert.DoesNotContain(StoredPin, response.Body);
             Assert.DoesNotContain("pin", response.Body, StringComparison.OrdinalIgnoreCase);
         }
+
+        [Fact]
+        public void Route_WhenDutyStopped_HealthAndStatusReturnDutyFalse()
+        {
+            AppSettings settings = CreateSettings();
+            SignalingRouter router = new SignalingRouter(
+                settings,
+                new ViewerCounter(),
+                new FixedBattery(87),
+                () => false);
+
+            HttpResponseInfo health = router.Route(Get("/health"));
+            HttpResponseInfo status = router.Route(new HttpRequestInfo
+            {
+                Method = "GET",
+                Path = "/status",
+                PinCookie = StoredPin
+            });
+
+            Assert.Contains("\"duty\":false", health.Body, StringComparison.Ordinal);
+            Assert.Contains("\"duty\":false", status.Body, StringComparison.Ordinal);
+        }
         [Fact]
         public void Route_WhenRootWithoutPin_Returns401()
         {
@@ -196,7 +218,7 @@ namespace AndroidCameraShare.Tests
             };
             HttpResponseInfo response = router.Route(request);
             Assert.Equal(200, response.StatusCode);
-            Assert.Equal("{\"battery\":87,\"camera\":\"back\"}", response.Body);
+            Assert.Equal("{\"battery\":87,\"camera\":\"back\",\"duty\":true}", response.Body);
             Assert.DoesNotContain(StoredPin, response.Body);
         }
         [Fact]

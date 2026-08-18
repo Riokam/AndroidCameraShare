@@ -225,6 +225,7 @@
       var reconnectTimer = null;
       var disconnectTimer = null;
       var batteryTimer = null;
+      var dutyTimer = null;
       var screenWakeLock = null;
       var wakeHintShown = false;
       var generation = 0;
@@ -476,12 +477,54 @@
         }
       }
 
+      async function stopDueToDutyOff() {
+        if (stopped) {
+          return;
+        }
+        stopped = true;
+        generation += 1;
+        clearReconnect();
+        closePeer();
+        if (batteryTimer) {
+          clearInterval(batteryTimer);
+          batteryTimer = null;
+        }
+        if (dutyTimer) {
+          clearInterval(dutyTimer);
+          dutyTimer = null;
+        }
+        await releaseScreenWakeLock();
+        wakeHint.textContent = '';
+        setWatchingUi(false);
+        setStatus('Дежурный режим выключен на телефоне', true);
+        sessionId = null;
+      }
+
+      async function checkDutyActive() {
+        if (stopped) {
+          return;
+        }
+        try {
+          var response = await fetch('/health', { cache: 'no-store' });
+          if (!response.ok) {
+            return;
+          }
+          var data = await response.json();
+          if (data.duty === false) {
+            await stopDueToDutyOff();
+          }
+        } catch (error) {
+          // Нет ответа не доказывает выключение: это может быть временный сбой сети.
+        }
+      }
+
       function scheduleReconnect(message) {
         if (stopped) {
           return;
         }
         setStatus(message, true);
         closePeer();
+        checkDutyActive();
         if (reconnectTimer) {
           return;
         }
@@ -542,6 +585,10 @@
             return;
           }
           var data = await response.json();
+          if (data.duty === false) {
+            await stopDueToDutyOff();
+            return;
+          }
           if (data.camera === 'front' || data.camera === 'back') {
             if (cameraFacing !== data.camera) {
               userFlip = false;
@@ -658,6 +705,17 @@
             return;
           }
 
+          if (response.status === 503) {
+            try {
+              var unavailable = await response.json();
+              if (unavailable.duty === false) {
+                await stopDueToDutyOff();
+                return;
+              }
+            } catch (error) {
+            }
+          }
+
           if (!response.ok) {
             scheduleReconnect('Ошибка offer: ' + response.status);
             return;
@@ -743,7 +801,9 @@
         document.body.classList.toggle('controls-on');
       });
       batteryTimer = setInterval(refreshBattery, 30000);
+      dutyTimer = setInterval(checkDutyActive, 1000);
       refreshBattery();
+      checkDutyActive();
       video.addEventListener('loadedmetadata', layoutVideo);
       window.addEventListener('resize', layoutVideo);
       if (window.visualViewport) {

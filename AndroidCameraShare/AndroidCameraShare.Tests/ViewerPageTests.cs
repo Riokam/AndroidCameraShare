@@ -11,6 +11,9 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("pin", html, StringComparison.OrdinalIgnoreCase);
             Assert.Contains("<title>CameraShare</title>", html, StringComparison.Ordinal);
             Assert.Contains("Подключение к CameraShare", html, StringComparison.Ordinal);
+            Assert.Contains("Введите PIN, указанный в приложении.", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("четырёхзначный", html, StringComparison.OrdinalIgnoreCase);
+            Assert.DoesNotContain("ровно 4 цифры", html, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("RTCPeerConnection", html, StringComparison.Ordinal);
             Assert.DoesNotContain("?pin", html, StringComparison.Ordinal);
             Assert.Contains("<form id=\"pin-form\"", html, StringComparison.Ordinal);
@@ -55,6 +58,10 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("disconnectTimer", html, StringComparison.Ordinal);
             Assert.Contains("/status", html, StringComparison.Ordinal);
             Assert.Contains("30000", html, StringComparison.Ordinal);
+            Assert.Contains("checkDutyActive", html, StringComparison.Ordinal);
+            Assert.Contains("stopDueToDutyOff", html, StringComparison.Ordinal);
+            Assert.Contains("Дежурный режим выключен на телефоне", html, StringComparison.Ordinal);
+            Assert.Contains("data.duty === false", html, StringComparison.Ordinal);
             Assert.Contains("navigator.wakeLock.request('screen')", html, StringComparison.Ordinal);
             Assert.Contains("id=\"wake-hint\"", html, StringComparison.Ordinal);
             Assert.Contains("window.isSecureContext", html, StringComparison.Ordinal);
