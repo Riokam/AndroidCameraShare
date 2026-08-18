@@ -60,6 +60,9 @@ Desktop.ini
 # Локальные заметки (IP, порты отладки)
 AdbPairWiFi.txt
 
+# Локальные правила Cursor
+.cursor/rules/требования к проекту.mdc
+
 appsettings.*.local.json
 secrets.json
 .env
