@@ -28,6 +28,15 @@
         public const int MaxOfferBodyBytes = 64 * 1024;
 
         /// <summary>
+        /// Одновременные HTTP-запросы ограничены, чтобы LAN-клиент не исчерпал память.
+        /// </summary>
+        public const int MaxConcurrentHttpRequests = 8;
+
+        public static readonly TimeSpan HttpQueueWait = TimeSpan.FromMilliseconds(100);
+
+        public static readonly TimeSpan WrongPinWindow = TimeSpan.FromSeconds(1);
+
+        /// <summary>
         /// Pin в заголовке, а не в url
         /// </summary>
         public const string PinHeaderName = "X-Pin";

@@ -85,6 +85,91 @@ namespace AndroidCameraShare.Tests
                 await server.DisposeAsync();
             }
         }
+
+        [Fact]
+        public async Task Root_WhenPinIsMissing_ReturnsFormWithoutDelay()
+        {
+            int port = GetFreePort();
+            SignalingServer server = new SignalingServer(
+                CreateSettings(port),
+                new ViewerCounter(),
+                new CollectingLogger<SignalingServer>());
+
+            try
+            {
+                Assert.True(server.TryStart());
+                using HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                long startedAt = Environment.TickCount64;
+
+                HttpResponseMessage response = await client.GetAsync($"http://127.0.0.1:{port}/");
+                long elapsedMs = Environment.TickCount64 - startedAt;
+
+                Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+                Assert.True(elapsedMs < 500, $"PIN form took {elapsedMs} ms");
+            }
+            finally
+            {
+                await server.DisposeAsync();
+            }
+        }
+
+        [Fact]
+        public async Task Offer_WhenWrongPinIsRepeated_Returns429()
+        {
+            int port = GetFreePort();
+            SignalingServer server = new SignalingServer(
+                CreateSettings(port),
+                new ViewerCounter(),
+                new CollectingLogger<SignalingServer>());
+
+            try
+            {
+                Assert.True(server.TryStart());
+                using HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+
+                HttpResponseMessage first = await SendOfferAsync(client, port, "0000");
+                HttpResponseMessage second = await SendOfferAsync(client, port, "0001");
+
+                Assert.Equal(HttpStatusCode.Unauthorized, first.StatusCode);
+                Assert.Equal(HttpStatusCode.TooManyRequests, second.StatusCode);
+                Assert.Contains("1", second.Headers.GetValues("Retry-After"));
+            }
+            finally
+            {
+                await server.DisposeAsync();
+            }
+        }
+
+        [Fact]
+        public async Task Health_WhenOfferIsSlow_StillResponds()
+        {
+            int port = GetFreePort();
+            SlowOfferHandler handler = new SlowOfferHandler();
+            SignalingServer server = new SignalingServer(
+                CreateSettings(port),
+                new ViewerCounter(),
+                new CollectingLogger<SignalingServer>(),
+                handler);
+
+            try
+            {
+                Assert.True(server.TryStart());
+                using HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                Task<HttpResponseMessage> offerTask = SendOfferAsync(client, port, "1234");
+                await handler.Started.Task.WaitAsync(TimeSpan.FromSeconds(2));
+
+                HttpResponseMessage health = await client.GetAsync($"http://127.0.0.1:{port}/health");
+
+                Assert.Equal(HttpStatusCode.OK, health.StatusCode);
+                handler.Release.TrySetResult();
+                await offerTask;
+            }
+            finally
+            {
+                handler.Release.TrySetResult();
+                await server.DisposeAsync();
+            }
+        }
         [Fact]
         public async Task StopAsync_WhenCalled_ReleasesPort()
         {
@@ -442,6 +527,23 @@ namespace AndroidCameraShare.Tests
             settings.TrySetPin("1234");
             return settings;
         }
+
+        private static async Task<HttpResponseMessage> SendOfferAsync(
+            HttpClient client,
+            int port,
+            string pin)
+        {
+            using HttpRequestMessage request = new HttpRequestMessage(
+                HttpMethod.Post,
+                $"http://127.0.0.1:{port}/offer");
+            request.Headers.Add(NannyConstants.PinHeaderName, pin);
+            request.Content = new StringContent(
+                "{\"type\":\"offer\",\"sdp\":\"v=0\"}",
+                Encoding.UTF8,
+                "application/json");
+            return await client.SendAsync(request);
+        }
+
         private static int GetFreePort()
         {
             TcpListener tcp = new TcpListener(IPAddress.Loopback, 0);
@@ -463,6 +565,53 @@ namespace AndroidCameraShare.Tests
             public int? TryGetPercent()
             {
                 return _percent;
+            }
+        }
+
+        private sealed class SlowOfferHandler : IOfferHandler
+        {
+            public TaskCompletionSource Started { get; } =
+                new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public TaskCompletionSource Release { get; } =
+                new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public string? LastError => null;
+
+            public bool HasLiveSession => false;
+
+            public async Task<HttpResponseInfo> HandleOfferAsync(
+                string body,
+                CancellationToken cancellationToken)
+            {
+                Started.TrySetResult();
+                await Release.Task.WaitAsync(cancellationToken);
+                return new HttpResponseInfo
+                {
+                    StatusCode = 500,
+                    ContentType = "application/json; charset=utf-8",
+                    Body = "{}"
+                };
+            }
+
+            public Task StopSessionAsync()
+            {
+                return Task.CompletedTask;
+            }
+
+            public Task<bool> StopSessionAsync(string? sessionId)
+            {
+                return Task.FromResult(true);
+            }
+
+            public Task SwitchCameraAsync()
+            {
+                return Task.CompletedTask;
+            }
+
+            public Task<bool> SwitchCameraAsync(string? sessionId)
+            {
+                return Task.FromResult(true);
             }
         }
     }

@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Collections.Concurrent;
+using System.Net;
 using Microsoft.Extensions.Logging;
 using System.Text;
 
@@ -9,13 +10,18 @@ namespace AndroidCameraShare.Core
     /// </summary>
     public sealed class SignalingServer : IAsyncDisposable
     {
-        private static readonly TimeSpan WrongPinDelay = TimeSpan.FromSeconds(1);
         private readonly AppSettings _settings;
         private readonly SignalingRouter _router;
         private readonly ILogger<SignalingServer> _logger;
         private readonly IOfferHandler? _offers;
         private readonly string _listenHost;
         private readonly object _gate = new object();
+        private readonly object _requestTasksGate = new object();
+        private readonly SemaphoreSlim _requestGate = new SemaphoreSlim(
+            NannyConstants.MaxConcurrentHttpRequests,
+            NannyConstants.MaxConcurrentHttpRequests);
+        private readonly HashSet<Task> _requestTasks = [];
+        private readonly ConcurrentDictionary<string, long> _blockedPinClients = new ConcurrentDictionary<string, long>();
         private HttpListener? _listener;
         private CancellationTokenSource? _cts;
         private Task? _acceptTask;
@@ -78,6 +84,7 @@ namespace AndroidCameraShare.Core
                 CancellationTokenSource cts = new CancellationTokenSource();
                 _listener = listener;
                 _cts = cts;
+                _blockedPinClients.Clear();
                 _acceptTask = Task.Run(() => AcceptLoopAsync(listener, cts.Token));
                 IsRunning = true;
                 ListeningPort = port;
@@ -175,26 +182,117 @@ namespace AndroidCameraShare.Core
                 {
                     break;
                 }
+
+                bool entered;
                 try
                 {
-                    await HandleRequestAsync(context, cancellationToken);
+                    entered = await _requestGate.WaitAsync(
+                        NannyConstants.HttpQueueWait,
+                        cancellationToken);
                 }
-                catch (Exception ex)
+                catch (OperationCanceledException)
                 {
-                    // Один битый запрос не должен убить Accept.
-                    _logger.LogError(ex, "Сбой обработки HTTP-запроса");
+                    CloseResponse(context);
+                    break;
                 }
-                finally
+
+                if (!entered)
                 {
-                    try
-                    {
-                        context.Response.Close();
-                    }
-                    catch (Exception)
-                    {
-                        // Ответ мог быть уже закрыт.
-                    }
+                    await RejectBusyAsync(context, cancellationToken);
+                    continue;
                 }
+
+                TrackRequest(ProcessRequestAsync(context, cancellationToken));
+            }
+
+            await WaitForRequestsAsync();
+        }
+
+        private async Task ProcessRequestAsync(
+            HttpListenerContext context,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await HandleRequestAsync(context, cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                // Один битый запрос не должен убить Accept.
+                _logger.LogError(ex, "Сбой обработки HTTP-запроса");
+            }
+            finally
+            {
+                CloseResponse(context);
+                _requestGate.Release();
+            }
+        }
+
+        private void TrackRequest(Task requestTask)
+        {
+            lock (_requestTasksGate)
+            {
+                _requestTasks.Add(requestTask);
+            }
+
+            _ = requestTask.ContinueWith(
+                _ =>
+                {
+                    lock (_requestTasksGate)
+                    {
+                        _requestTasks.Remove(requestTask);
+                    }
+                },
+                CancellationToken.None,
+                TaskContinuationOptions.ExecuteSynchronously,
+                TaskScheduler.Default);
+        }
+
+        private async Task WaitForRequestsAsync()
+        {
+            Task[] requests;
+            lock (_requestTasksGate)
+            {
+                requests = _requestTasks.ToArray();
+            }
+
+            await Task.WhenAll(requests);
+        }
+
+        private static async Task RejectBusyAsync(
+            HttpListenerContext context,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                HttpResponseInfo response = Json(503, "Сервер занят");
+                context.Response.StatusCode = response.StatusCode;
+                context.Response.ContentType = response.ContentType;
+                byte[] bytes = Encoding.UTF8.GetBytes(response.Body);
+                context.Response.ContentLength64 = bytes.Length;
+                await context.Response.OutputStream.WriteAsync(bytes, cancellationToken);
+            }
+            catch (Exception)
+            {
+            }
+            finally
+            {
+                CloseResponse(context);
+            }
+        }
+
+        private static void CloseResponse(HttpListenerContext context)
+        {
+            try
+            {
+                context.Response.Close();
+            }
+            catch (Exception)
+            {
+                // Ответ мог быть уже закрыт.
             }
         }
 
@@ -228,12 +326,40 @@ namespace AndroidCameraShare.Core
                 Body = body
             };
 
-            HttpResponseInfo response = _router.Route(info);
+            string clientKey = request.RemoteEndPoint?.Address.ToString() ?? "unknown";
+            bool rateLimitedPath = ShouldRateLimitPin(info);
+            HttpResponseInfo response;
+            if (rateLimitedPath && IsPinClientBlocked(clientKey))
+            {
+                context.Response.Headers["Retry-After"] = "1";
+                response = path == "/"
+                    ? new HttpResponseInfo
+                    {
+                        StatusCode = 401,
+                        ContentType = "text/html; charset=utf-8",
+                        Body = ViewerPage.PinFormHtml
+                    }
+                    : Json(429, "Слишком много попыток PIN");
+            }
+            else
+            {
+                response = _router.Route(info);
+                if (rateLimitedPath)
+                {
+                    if (response.StatusCode == 401)
+                    {
+                        BlockPinClient(clientKey);
+                    }
+                    else
+                    {
+                        _blockedPinClients.TryRemove(clientKey, out _);
+                    }
+                }
+            }
 
             if (response.StatusCode == 401)
             {
                 _logger.LogWarning("Отклонён запрос без верного PIN");
-                await Task.Delay(WrongPinDelay, cancellationToken);
             }
             else if (response.StatusCode == 200 && isOffer && _offers is not null)
             {
@@ -289,6 +415,48 @@ namespace AndroidCameraShare.Core
             context.Response.ContentLength64 = bytes.Length;
 
             await context.Response.OutputStream.WriteAsync(bytes, cancellationToken);
+        }
+
+        private static bool ShouldRateLimitPin(HttpRequestInfo request)
+        {
+            if (string.Equals(request.Method, "GET", StringComparison.Ordinal))
+            {
+                if (request.Path == "/status")
+                {
+                    return true;
+                }
+
+                return request.Path == "/"
+                    && (!string.IsNullOrEmpty(request.PinHeader)
+                        || !string.IsNullOrEmpty(request.PinCookie));
+            }
+
+            return string.Equals(request.Method, "POST", StringComparison.Ordinal)
+                && (request.Path == "/offer"
+                    || request.Path == "/hangup"
+                    || request.Path == "/camera");
+        }
+
+        private bool IsPinClientBlocked(string clientKey)
+        {
+            if (!_blockedPinClients.TryGetValue(clientKey, out long blockedUntil))
+            {
+                return false;
+            }
+
+            if (blockedUntil > Environment.TickCount64)
+            {
+                return true;
+            }
+
+            _blockedPinClients.TryRemove(clientKey, out _);
+            return false;
+        }
+
+        private void BlockPinClient(string clientKey)
+        {
+            long delayMs = (long)NannyConstants.WrongPinWindow.TotalMilliseconds;
+            _blockedPinClients[clientKey] = Environment.TickCount64 + delayMs;
         }
 
         private static HttpResponseInfo Json(int statusCode, string message)
