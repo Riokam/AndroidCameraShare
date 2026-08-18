@@ -144,7 +144,8 @@
     <form id="pin-form" novalidate>
       <label for="pin">PIN-код</label>
       <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}"
-        maxlength="4" autocomplete="one-time-code" aria-describedby="pin-hint pin-error" autofocus>
+        maxlength="4" autocomplete="one-time-code" enterkeyhint="go"
+        aria-describedby="pin-hint pin-error" autofocus>
       <p class="error" id="pin-error" role="alert" aria-live="polite"></p>
       <button id="enter" type="submit">Открыть просмотр</button>
     </form>
@@ -155,10 +156,20 @@
       var input = document.getElementById('pin');
       var error = document.getElementById('pin-error');
 
-      input.addEventListener('input', function () {
+      input.addEventListener('input', function (event) {
         input.value = input.value.replace(/\D/g, '').slice(0, 4);
         input.removeAttribute('aria-invalid');
         error.textContent = '';
+        var inputType = event.inputType || '';
+        if (input.value.length === 4
+            && inputType.indexOf('delete') === -1
+            && inputType.indexOf('Undo') === -1) {
+          if (form.requestSubmit) {
+            form.requestSubmit();
+          } else {
+            form.dispatchEvent(new Event('submit', { cancelable: true }));
+          }
+        }
       });
 
       form.addEventListener('submit', function (event) {

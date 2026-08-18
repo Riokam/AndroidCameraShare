@@ -24,6 +24,7 @@
       flex-direction: column;
       height: 100vh;
       height: 100dvh;
+      height: 100svh;
       overflow: hidden;
       overscroll-behavior: none;
     }
@@ -68,7 +69,7 @@
       background: linear-gradient(rgba(2, 6, 23, .8), transparent);
       pointer-events: none;
     }
-    #status, #battery {
+    #status, #battery, #wake-hint {
       margin: 0;
       padding: 7px 11px;
       border: 1px solid rgba(255, 255, 255, .12);
@@ -80,8 +81,8 @@
       -webkit-backdrop-filter: blur(12px);
       backdrop-filter: blur(12px);
     }
-    #status:empty, #battery:empty { display: none; }
-    #battery { color: #cbd5e1; }
+    #status:empty, #battery:empty, #wake-hint:empty { display: none; }
+    #battery, #wake-hint { color: #cbd5e1; }
     #status.error {
       color: #fecdd3;
       border-color: rgba(251, 113, 133, .35);
@@ -144,6 +145,8 @@
     .stage:-webkit-full-screen {
       width: 100vw;
       height: 100vh;
+      height: 100dvh;
+      height: 100svh;
       background: #000;
     }
     @media (hover: none) and (pointer: coarse) {
@@ -163,7 +166,7 @@
       .hud {
         padding-top: max(6px, env(safe-area-inset-top, 0px));
       }
-      #status, #battery { padding: 5px 9px; }
+      #status, #battery, #wake-hint { padding: 5px 9px; }
       .actions {
         bottom: max(6px, env(safe-area-inset-bottom, 0px));
         padding: 6px;
@@ -181,6 +184,7 @@
     <div class="hud" aria-live="polite">
       <p id="status" role="status"></p>
       <p id="battery"></p>
+      <p id="wake-hint"></p>
     </div>
     <div class="actions">
       <button id="stop" class="icon-btn stop" type="button" aria-label="Остановить просмотр" title="Стоп">
@@ -210,6 +214,7 @@
       var stage = document.getElementById('stage');
       var status = document.getElementById('status');
       var battery = document.getElementById('battery');
+      var wakeHint = document.getElementById('wake-hint');
       var stopBtn = document.getElementById('stop');
       var watchBtn = document.getElementById('watch');
       var retryBtn = document.getElementById('retry');
@@ -221,6 +226,7 @@
       var disconnectTimer = null;
       var batteryTimer = null;
       var screenWakeLock = null;
+      var wakeHintShown = false;
       var generation = 0;
       var stopped = false;
       var sessionId = null;
@@ -296,11 +302,20 @@
           video.style.transform = offset ? ('rotate(' + offset + 'deg)') : '';
           return;
         }
-        var sw = stage.clientWidth;
-        var sh = stage.clientHeight;
+        var size = stageSize();
+        var sw = size.width;
+        var sh = size.height;
         video.style.width = sh + 'px';
         video.style.height = sw + 'px';
         video.style.transform = 'translate(-50%, -50%) rotate(' + (90 + offset) + 'deg)';
+      }
+
+      function stageSize() {
+        var viewport = window.visualViewport;
+        return {
+          width: viewport ? Math.min(stage.clientWidth, viewport.width) : stage.clientWidth,
+          height: viewport ? Math.min(stage.clientHeight, viewport.height) : stage.clientHeight
+        };
       }
 
       function cookiePin() {
@@ -329,8 +344,11 @@
       }
 
       async function acquireScreenWakeLock() {
-        if (stopped || document.visibilityState !== 'visible'
-            || !('wakeLock' in navigator) || screenWakeLock) {
+        if (stopped || document.visibilityState !== 'visible' || screenWakeLock) {
+          return;
+        }
+        if (!window.isSecureContext || !('wakeLock' in navigator)) {
+          showWakeLockHint();
           return;
         }
         try {
@@ -341,7 +359,16 @@
         } catch (error) {
           // API недоступен на небезопасном HTTP или ОС запретила блокировку.
           screenWakeLock = null;
+          showWakeLockHint();
         }
+      }
+
+      function showWakeLockHint() {
+        if (wakeHintShown) {
+          return;
+        }
+        wakeHintShown = true;
+        wakeHint.textContent = 'Экран может погаснуть: блокировка недоступна в этом браузере.';
       }
 
       async function releaseScreenWakeLock() {
@@ -491,6 +518,8 @@
         clearReconnect();
         closePeer();
         await releaseScreenWakeLock();
+        wakeHint.textContent = '';
+        wakeHintShown = false;
         setWatchingUi(false);
         setStatus('Просмотр остановлен', false);
         await hangup();
@@ -717,6 +746,10 @@
       refreshBattery();
       video.addEventListener('loadedmetadata', layoutVideo);
       window.addEventListener('resize', layoutVideo);
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', layoutVideo);
+        window.visualViewport.addEventListener('scroll', layoutVideo);
+      }
       connect();
     })();
   </script>

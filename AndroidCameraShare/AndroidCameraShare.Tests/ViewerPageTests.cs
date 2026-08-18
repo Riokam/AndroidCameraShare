@@ -18,6 +18,8 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("addEventListener('submit'", html, StringComparison.Ordinal);
             Assert.Contains("viewport-fit=cover", html, StringComparison.Ordinal);
             Assert.Contains("safe-area-inset", html, StringComparison.Ordinal);
+            Assert.Contains("enterkeyhint=\"go\"", html, StringComparison.Ordinal);
+            Assert.Contains("form.requestSubmit", html, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -54,6 +56,10 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("/status", html, StringComparison.Ordinal);
             Assert.Contains("30000", html, StringComparison.Ordinal);
             Assert.Contains("navigator.wakeLock.request('screen')", html, StringComparison.Ordinal);
+            Assert.Contains("id=\"wake-hint\"", html, StringComparison.Ordinal);
+            Assert.Contains("window.isSecureContext", html, StringComparison.Ordinal);
+            Assert.Contains("100svh", html, StringComparison.Ordinal);
+            Assert.Contains("window.visualViewport", html, StringComparison.Ordinal);
             Assert.Contains("visibilitychange", html, StringComparison.Ordinal);
             Assert.Contains("pageshow", html, StringComparison.Ordinal);
             Assert.DoesNotContain("window.addEventListener('pagehide'", html, StringComparison.Ordinal);
@@ -61,6 +67,7 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("prefers-reduced-motion", html, StringComparison.Ordinal);
             Assert.Contains("-webkit-backdrop-filter", html, StringComparison.Ordinal);
             Assert.DoesNotContain("?pin", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("NoSleep", html, StringComparison.Ordinal);
         }
     }
 }
