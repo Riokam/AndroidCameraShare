@@ -102,6 +102,7 @@ dotnet test AndroidCameraShare/AndroidCameraShare.Tests/AndroidCameraShare.Tests
 - PIN хранится в Android Keystore через SecureStorage; старое значение переносится автоматически
 - Дежурный режим не запускается, пока корректный PIN не задан
 - Камера и CPU lock только на сессию просмотра
+- Release-сборка хранит ограниченный журнал с ротацией без PIN и SDP
 - Это не замена HTTPS и не защита от того, кто уже в вашей Wi‑Fi сети и знает PIN
 - Не публикуйте PIN, не кладите его в QR и не коммитьте ключи подписи
 

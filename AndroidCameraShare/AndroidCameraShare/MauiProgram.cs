@@ -37,6 +37,10 @@ namespace AndroidCameraShare
 
 #if DEBUG
             builder.Logging.AddDebug();
+#else
+            builder.Logging.AddProvider(
+                new RotatingFileLoggerProvider(
+                    Path.Combine(FileSystem.AppDataDirectory, "logs")));
 #endif
 
             return builder.Build();
