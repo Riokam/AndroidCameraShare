@@ -2,23 +2,179 @@
 <html lang="ru">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b1120">
   <link rel="icon" href="data:,">
   <title>Няня</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #0b1120;
+      color: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; }
+    body {
+      min-height: 100vh;
+      min-height: 100dvh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      padding:
+        max(24px, env(safe-area-inset-top, 0px))
+        max(20px, env(safe-area-inset-right, 0px))
+        max(24px, env(safe-area-inset-bottom, 0px))
+        max(20px, env(safe-area-inset-left, 0px));
+      background:
+        radial-gradient(circle at 20% 10%, rgba(37, 99, 235, .3), transparent 38%),
+        radial-gradient(circle at 85% 90%, rgba(14, 165, 233, .2), transparent 34%),
+        #0b1120;
+    }
+    .card {
+      width: min(100%, 390px);
+      padding: clamp(24px, 7vw, 36px);
+      border: 1px solid rgba(148, 163, 184, .2);
+      border-radius: 28px;
+      background: rgba(15, 23, 42, .82);
+      box-shadow: 0 24px 70px rgba(0, 0, 0, .38);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+    }
+    .brand {
+      width: 56px;
+      height: 56px;
+      margin-bottom: 24px;
+      display: grid;
+      place-items: center;
+      border-radius: 18px;
+      color: #fff;
+      background: linear-gradient(145deg, #2563eb, #0ea5e9);
+      box-shadow: 0 12px 28px rgba(37, 99, 235, .34);
+    }
+    .brand svg { width: 28px; height: 28px; fill: currentColor; }
+    h1 {
+      margin: 0;
+      font-size: clamp(26px, 7vw, 34px);
+      line-height: 1.15;
+      letter-spacing: -.03em;
+    }
+    .hint {
+      margin: 10px 0 24px;
+      color: #94a3b8;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+    label {
+      display: block;
+      margin-bottom: 8px;
+      color: #cbd5e1;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    input {
+      width: 100%;
+      height: 58px;
+      padding: 0 18px;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      outline: none;
+      background: rgba(2, 6, 23, .66);
+      color: #f8fafc;
+      font: inherit;
+      font-size: 24px;
+      font-weight: 700;
+      letter-spacing: .35em;
+      text-align: center;
+      transition: border-color .18s, box-shadow .18s;
+    }
+    input:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 4px rgba(56, 189, 248, .14);
+    }
+    input[aria-invalid="true"] {
+      border-color: #fb7185;
+      box-shadow: 0 0 0 4px rgba(251, 113, 133, .12);
+    }
+    .error {
+      min-height: 20px;
+      margin: 8px 2px 0;
+      color: #fda4af;
+      font-size: 13px;
+    }
+    button {
+      width: 100%;
+      min-height: 54px;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 16px;
+      color: #fff;
+      background: linear-gradient(135deg, #2563eb, #0284c7);
+      font: inherit;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: manipulation;
+      transition: transform .15s, filter .15s;
+    }
+    button:hover { filter: brightness(1.1); }
+    button:active { transform: scale(.985); }
+    button:focus-visible {
+      outline: 3px solid rgba(125, 211, 252, .8);
+      outline-offset: 3px;
+    }
+    @media (max-height: 520px) and (orientation: landscape) {
+      body { place-items: start center; }
+      .card { padding: 22px 26px; }
+      .brand { width: 44px; height: 44px; margin-bottom: 14px; border-radius: 14px; }
+      .hint { margin: 6px 0 14px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      input, button { transition: none; }
+    }
+  </style>
 </head>
 <body>
-  <p>Введите PIN</p>
-  <input id="pin" type="password" inputmode="numeric" maxlength="4" autocomplete="off">
-  <button id="enter" type="button">Открыть</button>
+  <main class="card">
+    <div class="brand" aria-hidden="true">
+      <svg viewBox="0 0 24 24"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h8A2.5 2.5 0 0 1 17 5.5v2.1l3.4-2a1 1 0 0 1 1.6.86v11.08a1 1 0 0 1-1.6.86l-3.4-2v2.1a2.5 2.5 0 0 1-2.5 2.5h-8A2.5 2.5 0 0 1 4 18.5v-13Z"/></svg>
+    </div>
+    <h1>Подключение к няне</h1>
+    <p class="hint" id="pin-hint">Введите четырёхзначный PIN, указанный в приложении.</p>
+    <form id="pin-form" novalidate>
+      <label for="pin">PIN-код</label>
+      <input id="pin" name="pin" type="password" inputmode="numeric" pattern="[0-9]{4}"
+        maxlength="4" autocomplete="one-time-code" aria-describedby="pin-hint pin-error" autofocus>
+      <p class="error" id="pin-error" role="alert" aria-live="polite"></p>
+      <button id="enter" type="submit">Открыть просмотр</button>
+    </form>
+  </main>
   <script>
-    document.getElementById('enter').onclick = function () {
-      var pin = document.getElementById('pin').value;
-      if (pin.length !== 4) {
-        return;
-      }
-      document.cookie = 'pin=' + encodeURIComponent(pin) + '; Path=/; SameSite=Strict';
-      location.reload();
-    };
+    (function () {
+      var form = document.getElementById('pin-form');
+      var input = document.getElementById('pin');
+      var error = document.getElementById('pin-error');
+
+      input.addEventListener('input', function () {
+        input.value = input.value.replace(/\D/g, '').slice(0, 4);
+        input.removeAttribute('aria-invalid');
+        error.textContent = '';
+      });
+
+      form.addEventListener('submit', function (event) {
+        event.preventDefault();
+        var pin = input.value;
+        if (!/^\d{4}$/.test(pin)) {
+          input.setAttribute('aria-invalid', 'true');
+          error.textContent = 'Введите ровно 4 цифры.';
+          input.focus();
+          input.select();
+          return;
+        }
+        document.cookie = 'pin=' + encodeURIComponent(pin) + '; Path=/; SameSite=Strict';
+        location.reload();
+      });
+    })();
   </script>
 </body>
 </html>

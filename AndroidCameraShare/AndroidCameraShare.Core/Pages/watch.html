@@ -3,21 +3,29 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#020617">
   <link rel="icon" href="data:,">
   <title>Няня</title>
   <style>
-    html, body { height: 100%; }
+    :root {
+      color-scheme: dark;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #020617;
+      color: #f8fafc;
+    }
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; }
     body {
-      font-family: sans-serif;
       margin: 0;
       padding: 0;
-      background: #111;
-      color: #eee;
+      background: #020617;
+      color: #f8fafc;
       display: flex;
       flex-direction: column;
-      box-sizing: border-box;
+      height: 100vh;
       height: 100dvh;
       overflow: hidden;
+      overscroll-behavior: none;
     }
     .stage {
       flex: 1;
@@ -26,6 +34,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      isolation: isolate;
       background: #000;
       overflow: hidden;
     }
@@ -48,50 +57,83 @@
       top: 0;
       z-index: 2;
       display: flex;
-      gap: 12px;
-      align-items: baseline;
+      gap: 8px;
+      align-items: center;
       flex-wrap: wrap;
-      padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 20px;
-      background: linear-gradient(rgba(0,0,0,.72), transparent);
+      padding:
+        calc(10px + env(safe-area-inset-top, 0px))
+        max(12px, env(safe-area-inset-right, 0px))
+        28px
+        max(12px, env(safe-area-inset-left, 0px));
+      background: linear-gradient(rgba(2, 6, 23, .8), transparent);
       pointer-events: none;
     }
     #status, #battery {
       margin: 0;
-      font-size: 14px;
+      padding: 7px 11px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 999px;
+      background: rgba(15, 23, 42, .66);
+      font-size: clamp(12px, 2.8vw, 14px);
+      line-height: 1.2;
       text-shadow: 0 1px 2px #000;
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
     }
-    #battery { color: #ccc; }
-    .error { color: #f66; }
+    #status:empty, #battery:empty { display: none; }
+    #battery { color: #cbd5e1; }
+    #status.error {
+      color: #fecdd3;
+      border-color: rgba(251, 113, 133, .35);
+      background: rgba(136, 19, 55, .68);
+    }
     .actions {
       position: absolute;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      left: 50%;
+      bottom: max(10px, env(safe-area-inset-bottom, 0px));
       z-index: 2;
       display: flex;
-      gap: 14px;
-      flex-wrap: wrap;
+      gap: clamp(6px, 2vw, 10px);
       align-items: center;
       justify-content: center;
-      padding: 16px 12px calc(14px + env(safe-area-inset-bottom, 0px));
-      background: linear-gradient(transparent, rgba(0,0,0,.78));
+      max-width: calc(100% - 24px - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+      padding: 8px;
+      border: 1px solid rgba(255, 255, 255, .14);
+      border-radius: 999px;
+      background: rgba(15, 23, 42, .72);
+      box-shadow: 0 14px 38px rgba(0, 0, 0, .38);
+      -webkit-backdrop-filter: blur(16px);
+      backdrop-filter: blur(16px);
+      transform: translateX(-50%);
     }
     .icon-btn {
-      width: 52px;
-      height: 52px;
+      width: clamp(44px, 12vw, 52px);
+      height: clamp(44px, 12vw, 52px);
+      flex: 0 0 auto;
       padding: 0;
-      border: 0;
+      border: 1px solid rgba(255, 255, 255, .08);
       border-radius: 50%;
-      background: rgba(255,255,255,.16);
+      background: rgba(255, 255, 255, .1);
       color: #fff;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       cursor: pointer;
-      backdrop-filter: blur(8px);
+      touch-action: manipulation;
+      transition: background-color .18s, transform .15s, border-color .18s;
     }
-    .icon-btn:hover { background: rgba(255,255,255,.28); }
+    .icon-btn:hover { background: rgba(255, 255, 255, .2); }
     .icon-btn:active { transform: scale(.96); }
+    .icon-btn:focus-visible {
+      outline: 3px solid rgba(125, 211, 252, .85);
+      outline-offset: 2px;
+    }
+    .icon-btn.stop {
+      color: #fff;
+      border-color: rgba(251, 113, 133, .35);
+      background: rgba(190, 18, 60, .76);
+    }
+    .icon-btn.stop:hover { background: rgba(225, 29, 72, .88); }
     .icon-btn svg { width: 22px; height: 22px; fill: currentColor; display: block; }
     .icon-btn.stop svg { width: 16px; height: 16px; }
     .icon-btn .fs-exit { display: none; }
@@ -108,20 +150,36 @@
       .actions {
         opacity: 0;
         pointer-events: none;
-        transition: opacity .2s;
+        transform: translateX(-50%) translateY(8px);
+        transition: opacity .2s, transform .2s;
       }
       body.controls-on .actions {
         opacity: 1;
         pointer-events: auto;
+        transform: translateX(-50%) translateY(0);
       }
+    }
+    @media (max-height: 430px) and (orientation: landscape) {
+      .hud {
+        padding-top: max(6px, env(safe-area-inset-top, 0px));
+      }
+      #status, #battery { padding: 5px 9px; }
+      .actions {
+        bottom: max(6px, env(safe-area-inset-bottom, 0px));
+        padding: 6px;
+      }
+      .icon-btn { width: 42px; height: 42px; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .actions, .icon-btn { transition: none; }
     }
   </style>
 </head>
 <body>
   <div class="stage" id="stage">
     <video id="video" autoplay playsinline></video>
-    <div class="hud">
-      <p id="status"></p>
+    <div class="hud" aria-live="polite">
+      <p id="status" role="status"></p>
       <p id="battery"></p>
     </div>
     <div class="actions">

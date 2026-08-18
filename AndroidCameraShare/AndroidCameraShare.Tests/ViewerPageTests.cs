@@ -11,6 +11,11 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("pin", html, StringComparison.OrdinalIgnoreCase);
             Assert.DoesNotContain("RTCPeerConnection", html, StringComparison.Ordinal);
             Assert.DoesNotContain("?pin", html, StringComparison.Ordinal);
+            Assert.Contains("<form id=\"pin-form\"", html, StringComparison.Ordinal);
+            Assert.Contains("type=\"submit\"", html, StringComparison.Ordinal);
+            Assert.Contains("addEventListener('submit'", html, StringComparison.Ordinal);
+            Assert.Contains("viewport-fit=cover", html, StringComparison.Ordinal);
+            Assert.Contains("safe-area-inset", html, StringComparison.Ordinal);
         }
 
         [Fact]
@@ -41,6 +46,9 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("visibilitychange", html, StringComparison.Ordinal);
             Assert.Contains("pageshow", html, StringComparison.Ordinal);
             Assert.DoesNotContain("window.addEventListener('pagehide'", html, StringComparison.Ordinal);
+            Assert.Contains("viewport-fit=cover", html, StringComparison.Ordinal);
+            Assert.Contains("prefers-reduced-motion", html, StringComparison.Ordinal);
+            Assert.Contains("-webkit-backdrop-filter", html, StringComparison.Ordinal);
             Assert.DoesNotContain("?pin", html, StringComparison.Ordinal);
         }
     }
