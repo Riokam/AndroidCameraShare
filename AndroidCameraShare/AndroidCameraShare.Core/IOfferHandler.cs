@@ -19,13 +19,13 @@ namespace AndroidCameraShare.Core
         Task<bool> StopSessionAsync(string? sessionId);
 
         /// <summary>
-        /// Сменить камеру на текущую из настроек, не рвя HTTP. Нет сессии — ничего.
+        /// Переключить камеру и сохранить facing только после успеха.
         /// </summary>
-        Task SwitchCameraAsync();
+        Task<bool> TrySwitchCameraAsync(CameraFacing target);
 
         /// <summary>
-        /// Сменить камеру только для владельца активной сессии.
+        /// Переключить камеру только для владельца активной сессии.
         /// </summary>
-        Task<bool> SwitchCameraAsync(string? sessionId);
+        Task<CameraSwitchResult> TrySwitchCameraAsync(CameraFacing target, string? sessionId);
     }
 }

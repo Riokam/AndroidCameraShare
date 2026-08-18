@@ -10,21 +10,18 @@ namespace AndroidCameraShare
         private bool _isUpdatingDutySwitch;
         private bool _dutyBusy;
         private bool _cameraReady;
-        private readonly AppSettingsStore _store;
         private readonly IDutyController _duty;
         private readonly ViewerCounter _viewers;
         private readonly IOfferHandler _offers;
 
         public MainPage(
             AppSettings settings,
-            AppSettingsStore store,
             IDutyController duty,
             ViewerCounter viewers,
             IOfferHandler offers)
         {
             InitializeComponent();
             _settings = settings;
-            _store = store;
             _duty = duty;
             _viewers = viewers;
             _offers = offers;
@@ -93,11 +90,19 @@ namespace AndroidCameraShare
                 return;
             }
 
-            _settings.CameraFacing = CameraPicker.SelectedIndex == 1
+            CameraFacing previous = _settings.CameraFacing;
+            CameraFacing target = CameraPicker.SelectedIndex == 1
                 ? CameraFacing.Front
                 : CameraFacing.Back;
-            _store.Save();
-            await _offers.SwitchCameraAsync();
+            if (await _offers.TrySwitchCameraAsync(target))
+            {
+                return;
+            }
+
+            _cameraReady = false;
+            CameraPicker.SelectedIndex = previous == CameraFacing.Front ? 1 : 0;
+            _cameraReady = true;
+            await DisplayAlertAsync("Камера", "Не удалось сменить камеру", "OK");
         }
 
         private async void OnPreviewCameraClicked(object? sender, EventArgs e)

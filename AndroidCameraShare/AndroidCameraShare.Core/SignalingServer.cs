@@ -390,12 +390,18 @@ namespace AndroidCameraShare.Core
                 {
                     if (_offers is not null)
                     {
-                        _settings.ToggleCameraFacing();
-                        bool switched = await _offers.SwitchCameraAsync(info.SessionHeader);
-                        if (!switched)
+                        CameraFacing target = _settings.CameraFacing == CameraFacing.Front
+                            ? CameraFacing.Back
+                            : CameraFacing.Front;
+                        CameraSwitchResult switchResult =
+                            await _offers.TrySwitchCameraAsync(target, info.SessionHeader);
+                        if (switchResult == CameraSwitchResult.SessionNotActive)
                         {
-                            _settings.ToggleCameraFacing();
                             response = Json(409, "Сессия больше не активна");
+                        }
+                        else if (switchResult == CameraSwitchResult.Failed)
+                        {
+                            response = Json(500, "Не удалось сменить камеру");
                         }
                         else
                         {

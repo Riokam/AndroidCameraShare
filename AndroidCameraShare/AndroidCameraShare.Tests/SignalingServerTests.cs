@@ -361,7 +361,7 @@ namespace AndroidCameraShare.Tests
             int port = GetFreePort();
             AppSettings settings = CreateSettings(port);
             ViewerCounter viewers = new ViewerCounter();
-            FailingOfferHandler handler = new FailingOfferHandler(viewers);
+            FailingOfferHandler handler = new FailingOfferHandler(viewers, settings);
             SignalingServer server = new SignalingServer(
                 settings,
                 viewers,
@@ -384,6 +384,43 @@ namespace AndroidCameraShare.Tests
                 Assert.Equal("{}", body);
                 Assert.Equal(CameraFacing.Front, settings.CameraFacing);
                 Assert.Equal(1, handler.SwitchCount);
+            }
+            finally
+            {
+                await server.DisposeAsync();
+            }
+        }
+
+        [Fact]
+        public async Task Camera_WhenSwitchFails_Returns500AndKeepsFacing()
+        {
+            int port = GetFreePort();
+            AppSettings settings = CreateSettings(port);
+            ViewerCounter viewers = new ViewerCounter();
+            FailingOfferHandler handler = new FailingOfferHandler(viewers, settings)
+            {
+                CameraSwitchSucceeds = false
+            };
+            SignalingServer server = new SignalingServer(
+                settings,
+                viewers,
+                new CollectingLogger<SignalingServer>(),
+                handler);
+
+            try
+            {
+                Assert.True(server.TryStart());
+                using HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                using HttpRequestMessage request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"http://127.0.0.1:{port}/camera");
+                request.Headers.Add(NannyConstants.PinHeaderName, "1234");
+                request.Headers.Add(NannyConstants.SessionHeaderName, "session");
+
+                HttpResponseMessage response = await client.SendAsync(request);
+
+                Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+                Assert.Equal(CameraFacing.Back, settings.CameraFacing);
             }
             finally
             {
@@ -456,10 +493,12 @@ namespace AndroidCameraShare.Tests
         private sealed class FailingOfferHandler : IOfferHandler
         {
             private readonly ViewerCounter _viewers;
+            private readonly AppSettings? _settings;
 
-            public FailingOfferHandler(ViewerCounter viewers)
+            public FailingOfferHandler(ViewerCounter viewers, AppSettings? settings = null)
             {
                 _viewers = viewers;
+                _settings = settings;
             }
 
             public string? LastError { get; private set; }
@@ -471,6 +510,8 @@ namespace AndroidCameraShare.Tests
             public int SwitchCount { get; private set; }
 
             public bool AcceptSessionCommands { get; init; } = true;
+
+            public bool CameraSwitchSucceeds { get; init; } = true;
 
             public Task<HttpResponseInfo> HandleOfferAsync(string body, CancellationToken cancellationToken)
             {
@@ -503,21 +544,33 @@ namespace AndroidCameraShare.Tests
                 return true;
             }
 
-            public Task SwitchCameraAsync()
+            public Task<bool> TrySwitchCameraAsync(CameraFacing target)
             {
                 SwitchCount++;
-                return Task.CompletedTask;
+                if (_settings is not null)
+                {
+                    _settings.CameraFacing = target;
+                }
+
+                return Task.FromResult(true);
             }
 
-            public async Task<bool> SwitchCameraAsync(string? sessionId)
+            public async Task<CameraSwitchResult> TrySwitchCameraAsync(
+                CameraFacing target,
+                string? sessionId)
             {
                 if (!AcceptSessionCommands)
                 {
-                    return false;
+                    return CameraSwitchResult.SessionNotActive;
                 }
 
-                await SwitchCameraAsync();
-                return true;
+                if (!CameraSwitchSucceeds)
+                {
+                    return CameraSwitchResult.Failed;
+                }
+
+                await TrySwitchCameraAsync(target);
+                return CameraSwitchResult.Success;
             }
         }
         private static AppSettings CreateSettings(int port)
@@ -604,14 +657,16 @@ namespace AndroidCameraShare.Tests
                 return Task.FromResult(true);
             }
 
-            public Task SwitchCameraAsync()
-            {
-                return Task.CompletedTask;
-            }
-
-            public Task<bool> SwitchCameraAsync(string? sessionId)
+            public Task<bool> TrySwitchCameraAsync(CameraFacing target)
             {
                 return Task.FromResult(true);
+            }
+
+            public Task<CameraSwitchResult> TrySwitchCameraAsync(
+                CameraFacing target,
+                string? sessionId)
+            {
+                return Task.FromResult(CameraSwitchResult.Success);
             }
         }
     }

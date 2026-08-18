@@ -143,17 +143,12 @@ namespace AndroidCameraShare
             }
         }
 
-        public async Task SwitchCameraAsync()
+        public async Task<bool> TrySwitchCameraAsync(CameraFacing target)
         {
             await _sessionGate.WaitAsync();
             try
             {
-                SwitchCameraCore();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Не удалось сменить камеру");
-                LastError = "Не удалось сменить камеру";
+                return await TrySwitchCameraCoreAsync(target);
             }
             finally
             {
@@ -161,7 +156,9 @@ namespace AndroidCameraShare
             }
         }
 
-        public async Task<bool> SwitchCameraAsync(string? sessionId)
+        public async Task<CameraSwitchResult> TrySwitchCameraAsync(
+            CameraFacing target,
+            string? sessionId)
         {
             await _sessionGate.WaitAsync();
             try
@@ -169,17 +166,13 @@ namespace AndroidCameraShare
                 if (!_sessionLive || !MatchesSession(sessionId))
                 {
                     _logger.LogWarning("Отклонена смена камеры устаревшей сессией");
-                    return false;
+                    return CameraSwitchResult.SessionNotActive;
                 }
 
-                SwitchCameraCore();
-                return true;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Не удалось сменить камеру");
-                LastError = "Не удалось сменить камеру";
-                return false;
+                bool switched = await TrySwitchCameraCoreAsync(target);
+                return switched
+                    ? CameraSwitchResult.Success
+                    : CameraSwitchResult.Failed;
             }
             finally
             {
@@ -194,16 +187,49 @@ namespace AndroidCameraShare
             _logger.LogInformation("Просмотр остановлен, дежурство не выключаем");
         }
 
-        private void SwitchCameraCore()
+        private async Task<bool> TrySwitchCameraCoreAsync(CameraFacing target)
         {
-            _store.Save();
-            if (!_sessionLive)
+            CameraFacing previous = _settings.CameraFacing;
+            if (target == previous)
             {
-                return;
+                return true;
             }
 
-            RestartCapturer();
-            _logger.LogInformation("Камера сессии сменена");
+            if (!_sessionLive)
+            {
+                _settings.CameraFacing = target;
+                _store.Save();
+                LastError = null;
+                return true;
+            }
+
+            try
+            {
+                RestartCapturer(target);
+                _settings.CameraFacing = target;
+                _store.Save();
+                LastError = null;
+                _logger.LogInformation("Камера сессии сменена");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Не удалось сменить камеру");
+                LastError = "Не удалось сменить камеру";
+                try
+                {
+                    RestartCapturer(previous);
+                }
+                catch (Exception rollbackError)
+                {
+                    _logger.LogError(
+                        rollbackError,
+                        "Не удалось восстановить предыдущую камеру, сессия закрывается");
+                    await TeardownCoreAsync(resetCounter: true);
+                }
+
+                return false;
+            }
         }
 
         private bool MatchesSession(string? sessionId)
@@ -231,7 +257,7 @@ namespace AndroidCameraShare
                 ?? throw new InvalidOperationException("Egl context");
 
             Camera2Enumerator enumerator = new Camera2Enumerator(context);
-            string deviceName = FindCameraName(enumerator);
+            string deviceName = FindCameraName(enumerator, _settings.CameraFacing);
             _capturer = enumerator.CreateCapturer(deviceName, null)
                 ?? throw new InvalidOperationException("Нет камеры");
 
@@ -515,9 +541,11 @@ namespace AndroidCameraShare
             PeerConnectionFactory.Initialize(options);
         }
 
-        private string FindCameraName(Camera2Enumerator enumerator)
+        private static string FindCameraName(
+            Camera2Enumerator enumerator,
+            CameraFacing facing)
         {
-            bool wantFront = _settings.CameraFacing == CameraFacing.Front;
+            bool wantFront = facing == CameraFacing.Front;
             string[] names = enumerator.GetDeviceNames() ?? [];
             foreach (string name in names)
             {
@@ -538,7 +566,7 @@ namespace AndroidCameraShare
         /// <summary>
         /// Тот же VideoTrack, другой Camera2 capturer — зритель видит новую камеру без нового offer.
         /// </summary>
-        private void RestartCapturer()
+        private void RestartCapturer(CameraFacing facing)
         {
             if (_factory is null || _surfaceHelper is null || _videoSource is null)
             {
@@ -567,7 +595,7 @@ namespace AndroidCameraShare
 
             Context context = Application.Context;
             Camera2Enumerator enumerator = new Camera2Enumerator(context);
-            string deviceName = FindCameraName(enumerator);
+            string deviceName = FindCameraName(enumerator, facing);
             IVideoCapturer capturer = enumerator.CreateCapturer(deviceName, null)
                 ?? throw new InvalidOperationException("Нет камеры");
             capturer.Initialize(_surfaceHelper, context, _videoSource.CapturerObserver);
