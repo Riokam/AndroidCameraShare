@@ -22,6 +22,7 @@ namespace AndroidCameraShare
                 });
 
             builder.Services.AddSingleton<AppSettings>();
+            builder.Services.AddSingleton<IPinStorage, SecurePinStorage>();
             builder.Services.AddSingleton<AppSettingsStore>();
             builder.Services.AddSingleton<ViewerCounter>();
             builder.Services.AddSingleton<PowerPolicy>();

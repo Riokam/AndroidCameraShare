@@ -99,6 +99,8 @@ dotnet test AndroidCameraShare/AndroidCameraShare.Tests/AndroidCameraShare.Tests
 ## Безопасность
 
 - Доступ к видео только по PIN в LAN, без облака и без аккаунтов
+- PIN хранится в Android Keystore через SecureStorage; старое значение переносится автоматически
+- Дежурный режим не запускается, пока корректный PIN не задан
 - Камера и CPU lock только на сессию просмотра
 - Это не замена HTTPS и не защита от того, кто уже в вашей Wi‑Fi сети и знает PIN
 - Не публикуйте PIN, не кладите его в QR и не коммитьте ключи подписи

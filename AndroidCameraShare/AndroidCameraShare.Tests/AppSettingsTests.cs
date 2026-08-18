@@ -11,6 +11,7 @@ namespace AndroidCameraShare.Tests
 
             Assert.Equal(NannyConstants.DefaultPort, settings.Port);
             Assert.Equal(string.Empty, settings.Pin);
+            Assert.False(settings.HasConfiguredPin);
             Assert.Equal(CameraFacing.Back, settings.CameraFacing);
             Assert.False(settings.IsAutostartEnabled);
             Assert.Equal(PowerMode.Economy, settings.PowerMode);
@@ -83,6 +84,7 @@ namespace AndroidCameraShare.Tests
             bool accepted = settings.TrySetPin("1234");
             Assert.True(accepted);
             Assert.Equal("1234", settings.Pin);
+            Assert.True(settings.HasConfiguredPin);
         }
         [Fact]
         public void TrySetPin_WhenInvalid_KeepsPreviousPin()

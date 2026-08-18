@@ -14,13 +14,22 @@ namespace AndroidCameraShare
     {
         private readonly SignalingServer _server;
         private readonly IOfferHandler? _offers;
+        private readonly AppSettings _settings;
+        private readonly AppSettingsStore _store;
         private readonly ILogger<DutyController> _logger;
         private readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);
         private string? _controllerError;
 
-        public DutyController(SignalingServer server, ILogger<DutyController> logger, IOfferHandler? offers = null)
+        public DutyController(
+            SignalingServer server,
+            AppSettings settings,
+            AppSettingsStore store,
+            ILogger<DutyController> logger,
+            IOfferHandler? offers = null)
         {
             _server = server;
+            _settings = settings;
+            _store = store;
             _logger = logger;
             _offers = offers;
         }
@@ -54,6 +63,14 @@ namespace AndroidCameraShare
             try
             {
                 _controllerError = null;
+
+                if (!await _store.EnsurePinLoadedAsync() || !_settings.HasConfiguredPin)
+                {
+                    _controllerError = "Сначала задайте PIN в настройках";
+                    _logger.LogWarning("Дежурный режим не запущен: PIN не задан");
+                    StateChanged?.Invoke();
+                    return false;
+                }
 
                 if (requestPermissions)
                 {

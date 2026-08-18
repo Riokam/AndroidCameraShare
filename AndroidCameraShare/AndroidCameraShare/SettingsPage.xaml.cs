@@ -82,7 +82,7 @@ public partial class SettingsPage : ContentPage
         }
     }
 
-    private void OnSavePinClicked(object? sender, EventArgs e)
+    private async void OnSavePinClicked(object? sender, EventArgs e)
     {
         PinErrorLabel.IsVisible = false;
         string pin = PinEntry.Text ?? string.Empty;
@@ -91,14 +91,20 @@ public partial class SettingsPage : ContentPage
             return;
         }
 
-        if (!_settings.TrySetPin(pin))
+        if (!AppSettings.IsValidPin(pin))
         {
             PinErrorLabel.Text = "PIN — ровно 4 цифры";
             PinErrorLabel.IsVisible = true;
             return;
         }
 
-        _store.Save();
+        if (!await _store.SavePinAsync(pin))
+        {
+            PinErrorLabel.Text = "Не удалось безопасно сохранить PIN";
+            PinErrorLabel.IsVisible = true;
+            return;
+        }
+
         PinEntry.Text = string.Empty;
     }
 

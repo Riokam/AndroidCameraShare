@@ -16,6 +16,8 @@ namespace AndroidCameraShare.Core
         /// </summary>
         public string Pin { get; private set; } = string.Empty;
 
+        public bool HasConfiguredPin => IsValidPin(Pin);
+
         /// <summary>
         /// Автозапуск после перезагрузки.
         /// </summary>
@@ -60,7 +62,7 @@ namespace AndroidCameraShare.Core
             return CryptographicOperations.FixedTimeEquals(storedBytes, candidateBytes);
         }
 
-        private bool IsValidPin(string? pin)
+        public static bool IsValidPin(string? pin)
         {
             if (pin == null || pin.Length != NannyConstants.PinLength)
                 return false;

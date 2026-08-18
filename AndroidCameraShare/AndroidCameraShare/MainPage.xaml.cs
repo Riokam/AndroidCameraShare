@@ -68,7 +68,18 @@ namespace AndroidCameraShare
             {
                 if (e.Value)
                 {
-                    await _duty.StartAsync();
+                    bool started = await _duty.StartAsync();
+                    if (!started
+                        && string.Equals(
+                            _duty.LastError,
+                            "Сначала задайте PIN в настройках",
+                            StringComparison.Ordinal))
+                    {
+                        await DisplayAlertAsync(
+                            "Дежурный режим",
+                            "Сначала задайте PIN в настройках",
+                            "OK");
+                    }
                 }
                 else
                 {
