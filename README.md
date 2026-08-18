@@ -113,4 +113,10 @@ dotnet test AndroidCameraShare/AndroidCameraShare.Tests/AndroidCameraShare.Tests
 - **Core** — настройки, роутер, HTTP, страницы зрителя в `Pages/*.html`
 - **MAUI** — дежурство (`IDutyController`), настройки, превью, WebRTC, foreground-сервис
 
+Подробная схема компонентов, сценариев, доверительных границ и управления
+ресурсами — в [docs/architecture.md](docs/architecture.md).
+
+Используемые библиотеки и условия их лицензий — в
+[docs/dependencies.md](docs/dependencies.md).
+
 Правила разработки — в [PLAN.md](PLAN.md).
