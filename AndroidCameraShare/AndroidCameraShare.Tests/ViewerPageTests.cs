@@ -19,7 +19,7 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("viewport-fit=cover", html, StringComparison.Ordinal);
             Assert.Contains("safe-area-inset", html, StringComparison.Ordinal);
             Assert.Contains("enterkeyhint=\"go\"", html, StringComparison.Ordinal);
-            Assert.Contains("form.requestSubmit", html, StringComparison.Ordinal);
+            Assert.DoesNotContain("form.requestSubmit", html, StringComparison.Ordinal);
         }
 
         [Fact]
