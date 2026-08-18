@@ -1,8 +1,6 @@
 using Android.Content;
 using Android.Net.Wifi;
 using Android.OS;
-using Android.Provider;
-using Android.Views;
 using AndroidCameraShare.Core;
 using Microsoft.Extensions.Logging;
 using Application = Android.App.Application;
@@ -16,7 +14,6 @@ namespace AndroidCameraShare
     {
         private const string CpuTag = "nanny:cpu";
         private const string WifiTag = "nanny:wifi";
-        private const int SessionScreenTimeoutMs = 3000;
 
         private readonly AppSettings _settings;
         private readonly ILogger<PowerPolicy> _logger;
@@ -24,7 +21,6 @@ namespace AndroidCameraShare
 
         private PowerManager.WakeLock? _cpuLock;
         private WifiManager.WifiLock? _wifiLock;
-        private int? _savedScreenTimeoutMs;
         private bool _sessionActive;
 
         public PowerPolicy(AppSettings settings, ILogger<PowerPolicy> logger)
@@ -152,59 +148,11 @@ namespace AndroidCameraShare
         private void DimScreen()
         {
             MainActivity.TrySetSessionDimming(true);
-            Context context = Application.Context;
-            if (!Settings.System.CanWrite(context))
-            {
-                return;
-            }
-
-            try
-            {
-                _savedScreenTimeoutMs = Settings.System.GetInt(
-                    context.ContentResolver,
-                    Settings.System.ScreenOffTimeout);
-                Settings.System.PutInt(
-                    context.ContentResolver,
-                    Settings.System.ScreenOffTimeout,
-                    SessionScreenTimeoutMs);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Не удалось укоротить таймаут экрана");
-                _savedScreenTimeoutMs = null;
-            }
         }
 
         private void RestoreScreen()
         {
             MainActivity.TrySetSessionDimming(false);
-            if (_savedScreenTimeoutMs is null)
-            {
-                return;
-            }
-
-            Context context = Application.Context;
-            if (!Settings.System.CanWrite(context))
-            {
-                _savedScreenTimeoutMs = null;
-                return;
-            }
-
-            try
-            {
-                Settings.System.PutInt(
-                    context.ContentResolver,
-                    Settings.System.ScreenOffTimeout,
-                    _savedScreenTimeoutMs.Value);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Не удалось вернуть таймаут экрана");
-            }
-            finally
-            {
-                _savedScreenTimeoutMs = null;
-            }
         }
     }
 }

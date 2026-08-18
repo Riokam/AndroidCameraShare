@@ -151,14 +151,4 @@ public partial class SettingsPage : ContentPage
         _logger.LogInformation("Тема приложения изменена: {ThemeMode}", themeMode);
     }
 
-    private void OnOpenWriteSettingsClicked(object? sender, EventArgs e)
-    {
-#if ANDROID
-        Android.Content.Intent intent = new Android.Content.Intent(
-            Android.Provider.Settings.ActionManageWriteSettings);
-        intent.SetData(Android.Net.Uri.Parse($"package:{Android.App.Application.Context.PackageName}"));
-        intent.AddFlags(Android.Content.ActivityFlags.NewTask);
-        Android.App.Application.Context.StartActivity(intent);
-#endif
-    }
 }

@@ -64,8 +64,6 @@
                         VerticalOptions="Center"
                         Toggled="OnDimScreenToggled" />
             </Grid>
-            <Button Text="Разрешить гасить экран"
-                    Clicked="OnOpenWriteSettingsClicked" />
 
             <Label x:Name="VersionLabel"
                    FontSize="13"
