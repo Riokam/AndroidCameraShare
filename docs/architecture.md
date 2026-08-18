@@ -234,5 +234,4 @@ dotnet build AndroidCameraShare/AndroidCameraShare/AndroidCameraShare.csproj
 - Android API и libwebrtc не протаскивать через границу `IOfferHandler`;
 - не добавлять облако, многопользовательский SFU или постоянную запись без отдельного архитектурного решения;
 - при добавлении маршрута описать PIN/session требования и добавить тесты;
-- при добавлении зависимости обновить `docs/dependencies.md`;
 - при изменении потоков или жизненного цикла обновить этот документ и README.

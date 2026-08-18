@@ -63,6 +63,12 @@ AdbPairWiFi.txt
 # Локальные правила Cursor
 .cursor/rules/требования к проекту.mdc
 
+# Локальный обзор зависимостей
+docs/dependencies.md
+
+# Локальный план разработки
+PLAN.md
+
 appsettings.*.local.json
 secrets.json
 .env

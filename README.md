@@ -115,8 +115,3 @@ dotnet test AndroidCameraShare/AndroidCameraShare.Tests/AndroidCameraShare.Tests
 
 Подробная схема компонентов, сценариев, доверительных границ и управления
 ресурсами — в [docs/architecture.md](docs/architecture.md).
-
-Используемые библиотеки и условия их лицензий — в
-[docs/dependencies.md](docs/dependencies.md).
-
-Правила разработки — в [PLAN.md](PLAN.md).
