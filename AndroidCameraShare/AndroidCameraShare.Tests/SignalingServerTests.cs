@@ -235,6 +235,42 @@ namespace AndroidCameraShare.Tests
         }
 
         [Fact]
+        public async Task Hangup_WhenSessionIsStale_Returns409AndDoesNotStop()
+        {
+            int port = GetFreePort();
+            ViewerCounter viewers = new ViewerCounter();
+            FailingOfferHandler handler = new FailingOfferHandler(viewers)
+            {
+                AcceptSessionCommands = false
+            };
+            SignalingServer server = new SignalingServer(
+                CreateSettings(port),
+                viewers,
+                new CollectingLogger<SignalingServer>(),
+                handler);
+
+            try
+            {
+                Assert.True(server.TryStart());
+                using HttpClient client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+                using HttpRequestMessage request = new HttpRequestMessage(
+                    HttpMethod.Post,
+                    $"http://127.0.0.1:{port}/hangup");
+                request.Headers.Add(NannyConstants.PinHeaderName, "1234");
+                request.Headers.Add(NannyConstants.SessionHeaderName, "stale");
+
+                HttpResponseMessage response = await client.SendAsync(request);
+
+                Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+                Assert.Equal(0, handler.StopCount);
+            }
+            finally
+            {
+                await server.DisposeAsync();
+            }
+        }
+
+        [Fact]
         public async Task Camera_WhenAuthorized_TogglesFacingAndSwitches()
         {
             int port = GetFreePort();
@@ -349,6 +385,8 @@ namespace AndroidCameraShare.Tests
 
             public int SwitchCount { get; private set; }
 
+            public bool AcceptSessionCommands { get; init; } = true;
+
             public Task<HttpResponseInfo> HandleOfferAsync(string body, CancellationToken cancellationToken)
             {
                 LastError = "Нет камеры";
@@ -369,10 +407,32 @@ namespace AndroidCameraShare.Tests
                 return Task.CompletedTask;
             }
 
+            public async Task<bool> StopSessionAsync(string? sessionId)
+            {
+                if (!AcceptSessionCommands)
+                {
+                    return false;
+                }
+
+                await StopSessionAsync();
+                return true;
+            }
+
             public Task SwitchCameraAsync()
             {
                 SwitchCount++;
                 return Task.CompletedTask;
+            }
+
+            public async Task<bool> SwitchCameraAsync(string? sessionId)
+            {
+                if (!AcceptSessionCommands)
+                {
+                    return false;
+                }
+
+                await SwitchCameraAsync();
+                return true;
             }
         }
         private static AppSettings CreateSettings(int port)

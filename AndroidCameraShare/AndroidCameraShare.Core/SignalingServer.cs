@@ -223,6 +223,7 @@ namespace AndroidCameraShare.Core
                 PinHeader = request.Headers[NannyConstants.PinHeaderName],
                 PinCookie = request.Cookies[NannyConstants.PinCookieName]?.Value,
                 PinQuery = request.QueryString["pin"],
+                SessionHeader = request.Headers[NannyConstants.SessionHeaderName],
                 BodyLength = bodyLength,
                 Body = body
             };
@@ -242,8 +243,15 @@ namespace AndroidCameraShare.Core
             {
                 try
                 {
-                    await _offers.StopSessionAsync();
-                    _logger.LogInformation("Зритель остановил просмотр");
+                    bool stopped = await _offers.StopSessionAsync(info.SessionHeader);
+                    if (stopped)
+                    {
+                        _logger.LogInformation("Зритель остановил просмотр");
+                    }
+                    else
+                    {
+                        response = Json(409, "Сессия больше не активна");
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -252,15 +260,22 @@ namespace AndroidCameraShare.Core
             }
             else if (response.StatusCode == 200 && isCamera)
             {
-                _settings.ToggleCameraFacing();
                 try
                 {
                     if (_offers is not null)
                     {
-                        await _offers.SwitchCameraAsync();
+                        _settings.ToggleCameraFacing();
+                        bool switched = await _offers.SwitchCameraAsync(info.SessionHeader);
+                        if (!switched)
+                        {
+                            _settings.ToggleCameraFacing();
+                            response = Json(409, "Сессия больше не активна");
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Камера переключена");
+                        }
                     }
-
-                    _logger.LogInformation("Камера переключена");
                 }
                 catch (Exception ex)
                 {
@@ -274,6 +289,16 @@ namespace AndroidCameraShare.Core
             context.Response.ContentLength64 = bytes.Length;
 
             await context.Response.OutputStream.WriteAsync(bytes, cancellationToken);
+        }
+
+        private static HttpResponseInfo Json(int statusCode, string message)
+        {
+            return new HttpResponseInfo
+            {
+                StatusCode = statusCode,
+                ContentType = "application/json; charset=utf-8",
+                Body = OfferSdp.ToErrorJson(message)
+            };
         }
 
         private static async Task<string> ReadBodyAsync(

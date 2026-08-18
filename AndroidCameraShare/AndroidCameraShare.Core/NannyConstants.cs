@@ -35,6 +35,11 @@
         public const string PinCookieName = "pin";
 
         /// <summary>
+        /// Идентификатор активной WebRTC-сессии для управляющих запросов.
+        /// </summary>
+        public const string SessionHeaderName = "X-Session";
+
+        /// <summary>
         /// Нет ICE/кадров столько — закрываем сессию, камера гаснет, HTTP остаётся.
         /// </summary>
         public static readonly TimeSpan IceTimeout = TimeSpan.FromSeconds(15);

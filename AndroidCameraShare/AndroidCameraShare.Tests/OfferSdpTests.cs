@@ -24,10 +24,11 @@ namespace AndroidCameraShare.Tests
         [Fact]
         public void ToAnswerJson_WhenCalled_DoesNotEmbedPin()
         {
-            string json = OfferSdp.ToAnswerJson("v=0");
+            string json = OfferSdp.ToAnswerJson("v=0", "session-1");
 
             Assert.Contains("answer", json, StringComparison.Ordinal);
             Assert.Contains("v=0", json, StringComparison.Ordinal);
+            Assert.Contains("session-1", json, StringComparison.Ordinal);
             Assert.DoesNotContain("pin", json, StringComparison.OrdinalIgnoreCase);
         }
 

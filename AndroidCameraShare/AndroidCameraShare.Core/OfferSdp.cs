@@ -40,9 +40,16 @@ namespace AndroidCameraShare.Core
             }
         }
 
-        public static string ToAnswerJson(string sdp)
+        public static string ToAnswerJson(string sdp, string sessionId)
         {
-            return JsonSerializer.Serialize(new OfferDto { Type = "answer", Sdp = sdp }, JsonOptions);
+            return JsonSerializer.Serialize(
+                new OfferDto
+                {
+                    Type = "answer",
+                    Sdp = sdp,
+                    SessionId = sessionId
+                },
+                JsonOptions);
         }
 
         public static string ToErrorJson(string message)
@@ -55,6 +62,8 @@ namespace AndroidCameraShare.Core
             public string? Type { get; set; }
 
             public string? Sdp { get; set; }
+
+            public string? SessionId { get; set; }
         }
 
         private sealed class ErrorDto

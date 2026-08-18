@@ -12,7 +12,7 @@
         public event Action? Changed;
 
         /// <summary>
-        /// Успешное подключение зрителя: первое подклчение или замена сессии
+        /// Успешное подключение единственного зрителя.
         /// </summary>
         public void RegisterSession()
         {

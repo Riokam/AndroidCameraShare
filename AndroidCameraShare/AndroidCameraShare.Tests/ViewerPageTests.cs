@@ -43,6 +43,10 @@ namespace AndroidCameraShare.Tests
             Assert.Contains("aria-label=\"Смотреть\"", html, StringComparison.Ordinal);
             Assert.Contains("aria-label=\"Остановить просмотр\"", html, StringComparison.Ordinal);
             Assert.Contains("/hangup", html, StringComparison.Ordinal);
+            Assert.Contains("X-Session", html, StringComparison.Ordinal);
+            Assert.Contains("response.status === 409", html, StringComparison.Ordinal);
+            Assert.Contains("Камера занята другим зрителем", html, StringComparison.Ordinal);
+            Assert.Contains("reconnectOwnedSession", html, StringComparison.Ordinal);
             Assert.Contains("/status", html, StringComparison.Ordinal);
             Assert.Contains("30000", html, StringComparison.Ordinal);
             Assert.Contains("navigator.wakeLock.request('screen')", html, StringComparison.Ordinal);

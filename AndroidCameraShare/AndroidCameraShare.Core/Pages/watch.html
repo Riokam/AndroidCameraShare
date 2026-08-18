@@ -218,6 +218,7 @@
       var screenWakeLock = null;
       var generation = 0;
       var stopped = false;
+      var sessionId = null;
       var cameraFacing = 'back';
       var userFlip = false;
 
@@ -301,7 +302,11 @@
       }
 
       function pinHeaders() {
-        return { 'X-Pin': cookiePin() };
+        var headers = { 'X-Pin': cookiePin() };
+        if (sessionId) {
+          headers['X-Session'] = sessionId;
+        }
+        return headers;
       }
 
       function setStatus(text, isError) {
@@ -410,8 +415,14 @@
         }
         reconnectTimer = setTimeout(function () {
           reconnectTimer = null;
-          connect();
+          reconnectOwnedSession();
         }, 2000);
+      }
+
+      async function reconnectOwnedSession() {
+        await hangup();
+        sessionId = null;
+        connect();
       }
 
       async function hangup() {
@@ -438,6 +449,7 @@
         setWatchingUi(false);
         setStatus('Просмотр остановлен', false);
         await hangup();
+        sessionId = null;
       }
 
       async function refreshBattery() {
@@ -545,6 +557,16 @@
             return;
           }
 
+          if (response.status === 409) {
+            stopped = true;
+            closePeer();
+            sessionId = null;
+            clearReconnect();
+            setWatchingUi(false);
+            setStatus('Камера занята другим зрителем', true);
+            return;
+          }
+
           if (!response.ok) {
             scheduleReconnect('Ошибка offer: ' + response.status);
             return;
@@ -556,6 +578,12 @@
             return;
           }
 
+          if (!answer.sessionId) {
+            scheduleReconnect('Нет идентификатора сессии, повтор…');
+            return;
+          }
+
+          sessionId = answer.sessionId;
           await pc.setRemoteDescription(answer);
           setStatus('Просмотр', false);
         } catch (error) {

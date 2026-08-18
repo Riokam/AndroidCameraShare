@@ -2,6 +2,8 @@ using Android.Content;
 using AndroidCameraShare.Core;
 using Microsoft.Extensions.Logging;
 using Org.Webrtc;
+using System.Security.Cryptography;
+using System.Text;
 using Application = Android.App.Application;
 using Exception = System.Exception;
 using Manifest = Android.Manifest;
@@ -32,6 +34,7 @@ namespace AndroidCameraShare
         private CancellationTokenSource? _disconnectGrace;
         private SessionObserver? _observer;
         private bool _sessionLive;
+        private string? _sessionId;
         private static int _isFactoryInitialized;
 
         public WebRtcHost(
@@ -62,6 +65,12 @@ namespace AndroidCameraShare
             await _sessionGate.WaitAsync(cancellationToken);
             try
             {
+                if (_sessionLive)
+                {
+                    _logger.LogInformation("Второй зритель отклонён: сессия уже активна");
+                    return Json(409, OfferSdp.ToErrorJson("Камера занята другим зрителем"));
+                }
+
                 await TeardownCoreAsync(resetCounter: false);
 
                 // Превью Camera2 должно отпустить устройство до WebRTC.
@@ -76,10 +85,12 @@ namespace AndroidCameraShare
                 }
 
                 string answerSdp = await StartSessionAsync(offerSdp, cancellationToken);
+                string sessionId = Convert.ToHexString(RandomNumberGenerator.GetBytes(16));
+                _sessionId = sessionId;
                 LastError = null;
                 _viewers.RegisterSession();
                 _logger.LogInformation("Зритель подключился");
-                return Json(200, OfferSdp.ToAnswerJson(answerSdp));
+                return Json(200, OfferSdp.ToAnswerJson(answerSdp, sessionId));
             }
             catch (Exception ex)
             {
@@ -99,9 +110,32 @@ namespace AndroidCameraShare
             await _sessionGate.WaitAsync();
             try
             {
-                LastError = null;
-                await TeardownCoreAsync(resetCounter: true);
-                _logger.LogInformation("Просмотр остановлен, дежурство не выключаем");
+                await StopSessionCoreAsync();
+            }
+            finally
+            {
+                _sessionGate.Release();
+            }
+        }
+
+        public async Task<bool> StopSessionAsync(string? sessionId)
+        {
+            await _sessionGate.WaitAsync();
+            try
+            {
+                if (!_sessionLive)
+                {
+                    return true;
+                }
+
+                if (!MatchesSession(sessionId))
+                {
+                    _logger.LogWarning("Отклонён hangup устаревшей сессии");
+                    return false;
+                }
+
+                await StopSessionCoreAsync();
+                return true;
             }
             finally
             {
@@ -114,14 +148,7 @@ namespace AndroidCameraShare
             await _sessionGate.WaitAsync();
             try
             {
-                _store.Save();
-                if (!_sessionLive)
-                {
-                    return;
-                }
-
-                RestartCapturer();
-                _logger.LogInformation("Камера сессии сменена");
+                SwitchCameraCore();
             }
             catch (Exception ex)
             {
@@ -132,6 +159,65 @@ namespace AndroidCameraShare
             {
                 _sessionGate.Release();
             }
+        }
+
+        public async Task<bool> SwitchCameraAsync(string? sessionId)
+        {
+            await _sessionGate.WaitAsync();
+            try
+            {
+                if (!_sessionLive || !MatchesSession(sessionId))
+                {
+                    _logger.LogWarning("Отклонена смена камеры устаревшей сессией");
+                    return false;
+                }
+
+                SwitchCameraCore();
+                return true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Не удалось сменить камеру");
+                LastError = "Не удалось сменить камеру";
+                return false;
+            }
+            finally
+            {
+                _sessionGate.Release();
+            }
+        }
+
+        private async Task StopSessionCoreAsync()
+        {
+            LastError = null;
+            await TeardownCoreAsync(resetCounter: true);
+            _logger.LogInformation("Просмотр остановлен, дежурство не выключаем");
+        }
+
+        private void SwitchCameraCore()
+        {
+            _store.Save();
+            if (!_sessionLive)
+            {
+                return;
+            }
+
+            RestartCapturer();
+            _logger.LogInformation("Камера сессии сменена");
+        }
+
+        private bool MatchesSession(string? sessionId)
+        {
+            if (string.IsNullOrEmpty(_sessionId)
+                || string.IsNullOrEmpty(sessionId)
+                || _sessionId.Length != sessionId.Length)
+            {
+                return false;
+            }
+
+            return CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(_sessionId),
+                Encoding.UTF8.GetBytes(sessionId));
         }
 
         private async Task<string> StartSessionAsync(string offerSdp, CancellationToken cancellationToken)
@@ -296,6 +382,7 @@ namespace AndroidCameraShare
         private async Task TeardownCoreAsync(bool resetCounter)
         {
             _sessionLive = false;
+            _sessionId = null;
             if (_observer is not null)
             {
                 _observer.OnDisconnected = null;

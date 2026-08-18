@@ -14,8 +14,18 @@ namespace AndroidCameraShare.Core
         Task StopSessionAsync();
 
         /// <summary>
+        /// Остановить сессию только по её идентификатору.
+        /// </summary>
+        Task<bool> StopSessionAsync(string? sessionId);
+
+        /// <summary>
         /// Сменить камеру на текущую из настроек, не рвя HTTP. Нет сессии — ничего.
         /// </summary>
         Task SwitchCameraAsync();
+
+        /// <summary>
+        /// Сменить камеру только для владельца активной сессии.
+        /// </summary>
+        Task<bool> SwitchCameraAsync(string? sessionId);
     }
 }

@@ -10,6 +10,7 @@
         public string? PinHeader { get; init; }
         public string? PinCookie { get; init; }
         public string? PinQuery { get; init; }
+        public string? SessionHeader { get; init; }
         public int BodyLength { get; init; }
 
         /// <summary>
