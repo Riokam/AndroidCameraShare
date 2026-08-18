@@ -9,7 +9,7 @@
             Routing.RegisterRoute(nameof(CameraPreviewPage), typeof(CameraPreviewPage));
             Items.Add(new ShellContent
             {
-                Title = "Няня",
+                Title = "CameraShare",
                 Content = mainPage,
                 Route = nameof(MainPage)
             });

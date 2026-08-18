@@ -222,7 +222,7 @@ namespace AndroidCameraShare
         {
             int count = _viewers?.Count ?? 0;
             string title = count == 0
-                ? $"Няня ждёт зрителя · {count} подключений"
+                ? $"CameraShare ждёт зрителя · {count} подключений"
                 : $"Идёт просмотр · {count} подключений";
 
             Intent launchIntent = PackageManager!.GetLaunchIntentForPackage(PackageName!)!;
@@ -243,7 +243,7 @@ namespace AndroidCameraShare
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, ChannelId);
             builder.SetContentTitle(title);
             builder.SetContentText(_needsOpenAppForCamera
-                ? "Откройте няню, чтобы разрешить камеру"
+                ? "Откройте CameraShare, чтобы разрешить камеру"
                 : "Дежурный режим");
             builder.SetSmallIcon(Android.Resource.Drawable.IcDialogInfo);
             builder.SetContentIntent(contentIntent);
@@ -266,7 +266,7 @@ namespace AndroidCameraShare
                 "Дежурный режим",
                 NotificationImportance.Low)
             {
-                Description = "Няня слушает HTTP, камера выкл"
+                Description = "CameraShare слушает HTTP, камера выкл"
             };
             channel.EnableVibration(false);
             channel.EnableLights(false);

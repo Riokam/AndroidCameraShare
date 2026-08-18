@@ -9,6 +9,8 @@ namespace AndroidCameraShare.Tests
         {
             string html = ViewerPage.PinFormHtml;
             Assert.Contains("pin", html, StringComparison.OrdinalIgnoreCase);
+            Assert.Contains("<title>CameraShare</title>", html, StringComparison.Ordinal);
+            Assert.Contains("Подключение к CameraShare", html, StringComparison.Ordinal);
             Assert.DoesNotContain("RTCPeerConnection", html, StringComparison.Ordinal);
             Assert.DoesNotContain("?pin", html, StringComparison.Ordinal);
             Assert.Contains("<form id=\"pin-form\"", html, StringComparison.Ordinal);
@@ -22,6 +24,7 @@ namespace AndroidCameraShare.Tests
         public void WatchHtml_WhenLoaded_HasPlayerAndSignaling()
         {
             string html = ViewerPage.WatchHtml;
+            Assert.Contains("<title>CameraShare</title>", html, StringComparison.Ordinal);
             Assert.Contains("RTCPeerConnection", html, StringComparison.Ordinal);
             Assert.Contains("waitIceComplete(pc, 3000)", html, StringComparison.Ordinal);
             Assert.Contains("AbortController", html, StringComparison.Ordinal);
